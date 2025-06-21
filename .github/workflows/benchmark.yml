@@ -1,0 +1,99 @@
+name: Memory Tracker Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_range:
+        description: 'Commit range to benchmark (e.g., HEAD~10..HEAD)'
+        required: true
+        default: 'HEAD~5..HEAD'
+      binary_id:
+        description: 'Binary ID to use for benchmarking'
+        required: true
+        default: 'default'
+      environment_id:
+        description: 'Environment ID'
+        required: true
+        default: 'linux-x86_64'
+      server_url:
+        description: 'Memory tracker server URL'
+        required: false
+        default: 'https://memory.python.org'
+      cpython_repo:
+        description: 'CPython repository URL'
+        required: false
+        default: 'https://github.com/python/cpython.git'
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout memory tracker
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Clone CPython repository
+      run: |
+        git clone ${{ github.event.inputs.cpython_repo }} cpython
+        cd cpython
+        git fetch --depth=50
+        
+    - name: Install memory tracker worker
+      run: |
+        cd worker
+        pip install -e .
+        
+    - name: Install build dependencies
+      run: |
+        # Install CPython dependencies using their script
+        cd cpython
+        sudo .github/workflows/posix-deps-apt.sh
+        
+        # Install Memray dependencies  
+        sudo apt-get install -y \
+          python3-dev \
+          libdebuginfod-dev \
+          libunwind-dev \
+          liblz4-dev
+          
+    - name: Run memory benchmarks
+      env:
+        MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
+      run: |
+        # Build command with preconfigured options
+        CMD="memory-tracker benchmark ./cpython ${{ github.event.inputs.commit_range }}"
+        CMD="$CMD --binary-id ${{ github.event.inputs.binary_id }}"
+        CMD="$CMD --environment-id ${{ github.event.inputs.environment_id }}"
+        CMD="$CMD --api-base ${{ github.event.inputs.server_url }}"
+        CMD="$CMD --configure-flags='-C'"
+        CMD="$CMD --make-flags='-j4'"
+        CMD="$CMD --output-dir='./benchmark_results'"
+        CMD="$CMD --force"
+        CMD="$CMD --local-checkout"
+        CMD="$CMD -vv"
+        
+        echo "Running: $CMD"
+        eval $CMD
+          
+    - name: Upload benchmark results (if failed)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-logs
+        path: |
+          *.log
+          ./benchmark_results/
+        retention-days: 7
+        
+    - name: Upload benchmark results (on success)
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: ./benchmark_results/
+        retention-days: 30

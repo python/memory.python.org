@@ -1,0 +1,120 @@
+{
+  "total_num_allocations": 403,
+  "total_bytes_allocated": 255356324,
+  "allocation_size_histogram": [
+    {
+      "min_bytes": 0,
+      "max_bytes": 3,
+      "count": 10
+    },
+    {
+      "min_bytes": 4,
+      "max_bytes": 23,
+      "count": 0
+    },
+    {
+      "min_bytes": 24,
+      "max_bytes": 118,
+      "count": 0
+    },
+    {
+      "min_bytes": 119,
+      "max_bytes": 588,
+      "count": 9
+    },
+    {
+      "min_bytes": 589,
+      "max_bytes": 2905,
+      "count": 101
+    },
+    {
+      "min_bytes": 2906,
+      "max_bytes": 14323,
+      "count": 55
+    },
+    {
+      "min_bytes": 14324,
+      "max_bytes": 70590,
+      "count": 45
+    },
+    {
+      "min_bytes": 70591,
+      "max_bytes": 347880,
+      "count": 43
+    },
+    {
+      "min_bytes": 347881,
+      "max_bytes": 1714388,
+      "count": 104
+    },
+    {
+      "min_bytes": 1714389,
+      "max_bytes": 8448672,
+      "count": 36
+    }
+  ],
+  "allocator_type_distribution": {
+    "REALLOC": 244,
+    "MMAP": 62,
+    "MALLOC": 59,
+    "CALLOC": 38
+  },
+  "top_allocations_by_size": [
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:10",
+      "size": 108519520
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:7",
+      "size": 76007520
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:13",
+      "size": 37477280
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:6",
+      "size": 32508928
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:258",
+      "size": 131073
+    }
+  ],
+  "top_allocations_by_count": [
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:10",
+      "count": 110
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:7",
+      "count": 78
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:13",
+      "count": 72
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:259",
+      "count": 49
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/list_operations.py:6",
+      "count": 32
+    }
+  ],
+  "metadata": {
+    "start_time": "2025-06-21 17:23:22.488000+01:00",
+    "end_time": "2025-06-21 17:23:22.717000+01:00",
+    "total_allocations": 788,
+    "total_frames": 45,
+    "peak_memory": 86104801,
+    "command_line": "/tmp/cpython_venv_fu7okc4n/bin/memray run --output benchmark_results/6a16b3c440cf9ecabecd3e90f44310e3b0765780/list_operations.bin /tmp/benchmarks_66uqwybi/list_operations.py",
+    "pid": 3341785,
+    "main_thread_id": 1,
+    "python_allocator": "pymalloc",
+    "has_native_traces": false,
+    "trace_python_allocators": false,
+    "file_format": 0
+  }
+}

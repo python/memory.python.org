@@ -1,0 +1,90 @@
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: memory_tracker
+      POSTGRES_USER: memory_tracker_user
+      POSTGRES_PASSWORD: memory_tracker_password
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U memory_tracker_user -d memory_tracker"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://memory_tracker_user:memory_tracker_password@db:5432/memory_tracker
+      CORS_ORIGINS: http://localhost:9002,http://frontend:9002
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Mount the entire backend directory for hot reloading
+      - ./backend:/app:rw
+      # Prevent node_modules/venv from being overwritten
+      - /app/__pycache__
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    environment:
+      NEXT_PUBLIC_API_BASE: http://localhost:8000
+    ports:
+      - "9002:9002"
+    depends_on:
+      - backend
+    volumes:
+      # Mount the entire frontend directory
+      - ./frontend:/app:rw
+      # Prevent node_modules from being overwritten
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npm install && npm run dev"
+    restart: unless-stopped
+
+  # Database initialization service
+  db-init:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://memory_tracker_user:memory_tracker_password@db:5432/memory_tracker
+    depends_on:
+      backend:
+        condition: service_started
+    volumes:
+      - ./backend:/app:ro
+    command: >
+      sh -c "
+        echo 'Waiting for backend to be ready...' &&
+        sleep 10 &&
+        echo 'Checking for asyncpg...' &&
+        python -c 'import asyncpg; print(\"asyncpg version:\", asyncpg.__version__)' &&
+        echo 'Populating database with default binaries...' &&
+        python scripts/populate_binaries.py &&
+        echo 'Database initialization complete!'
+      "
+    restart: "no"
+
+volumes:
+  postgres_data_dev:
+
+networks:
+  default:
+    name: memory_tracker_dev_network

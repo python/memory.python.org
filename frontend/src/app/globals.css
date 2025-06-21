@@ -1,0 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 94%; /* Light Gray */
+    --foreground: 0 0% 3.9%; /* Dark text on light gray */
+
+    --card: 0 0% 94%;
+    --card-foreground: 0 0% 3.9%;
+
+    --popover: 0 0% 94%;
+    --popover-foreground: 0 0% 3.9%;
+
+    --primary: 275 100% 25%; /* Indigo */
+    --primary-foreground: 0 0% 98%; /* Light text on Indigo */
+
+    --secondary: 0 0% 90%; /* Slightly darker gray */
+    --secondary-foreground: 0 0% 9%;
+
+    --muted: 0 0% 85%;
+    --muted-foreground: 0 0% 45.1%;
+
+    --accent: 51 100% 50%; /* Gold */
+    --accent-foreground: 0 0% 3.9%; /* Dark text on Gold */
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 80%;
+    --input: 0 0% 80%;
+    --ring: 275 100% 30%; /* Indigo-based ring */
+
+    --chart-1: 275 76% 51%; /* Indigo variant */
+    --chart-2: 51 80% 55%; /* Gold variant */
+    --chart-3: 210 60% 50%; /* Blue variant */
+    --chart-4: 150 60% 45%; /* Green variant */
+    --chart-5: 30 80% 60%; /* Orange variant */
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 90%;
+    --sidebar-foreground: 0 0% 10%;
+    --sidebar-primary: 275 100% 25%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 51 100% 50%;
+    --sidebar-accent-foreground: 0 0% 3.9%;
+    --sidebar-border: 0 0% 75%;
+    --sidebar-ring: 275 100% 30%;
+  }
+
+  .dark {
+    --background: 240 10% 10%; /* Very dark blue/gray */
+    --foreground: 0 0% 95%; /* Light text */
+
+    --card: 240 10% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 240 10% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 275 80% 60%; /* Lighter Indigo */
+    --primary-foreground: 0 0% 5%; /* Dark text on lighter Indigo */
+
+    --secondary: 240 10% 15%; /* Slightly lighter dark blue/gray */
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 240 10% 20%;
+    --muted-foreground: 0 0% 63.9%;
+
+    --accent: 51 100% 60%; /* Slightly adjusted Gold for dark mode */
+    --accent-foreground: 0 0% 5%; /* Dark text on Gold */
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 10% 25%;
+    --input: 240 10% 25%;
+    --ring: 275 80% 65%; /* Lighter Indigo-based ring */
+
+    --chart-1: 275 70% 60%;
+    --chart-2: 51 90% 65%;
+    --chart-3: 210 70% 60%;
+    --chart-4: 150 70% 55%;
+    --chart-5: 30 90% 70%;
+
+    --sidebar-background: 240 10% 15%;
+    --sidebar-foreground: 0 0% 90%;
+    --sidebar-primary: 275 80% 60%;
+    --sidebar-primary-foreground: 0 0% 5%;
+    --sidebar-accent: 51 100% 60%;
+    --sidebar-accent-foreground: 0 0% 5%;
+    --sidebar-border: 240 10% 30%;
+    --sidebar-ring: 275 80% 65%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-body;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-headline;
+  }
+  code,
+  pre {
+    @apply font-code;
+  }
+}
+
+@layer utilities {
+  .line-clamp-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}

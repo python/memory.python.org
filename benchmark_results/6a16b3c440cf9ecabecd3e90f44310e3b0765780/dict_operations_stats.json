@@ -1,0 +1,120 @@
+{
+  "total_num_allocations": 294,
+  "total_bytes_allocated": 323534084,
+  "allocation_size_histogram": [
+    {
+      "min_bytes": 0,
+      "max_bytes": 4,
+      "count": 10
+    },
+    {
+      "min_bytes": 5,
+      "max_bytes": 32,
+      "count": 0
+    },
+    {
+      "min_bytes": 33,
+      "max_bytes": 192,
+      "count": 0
+    },
+    {
+      "min_bytes": 193,
+      "max_bytes": 1118,
+      "count": 83
+    },
+    {
+      "min_bytes": 1119,
+      "max_bytes": 6475,
+      "count": 33
+    },
+    {
+      "min_bytes": 6476,
+      "max_bytes": 37461,
+      "count": 26
+    },
+    {
+      "min_bytes": 37462,
+      "max_bytes": 216700,
+      "count": 11
+    },
+    {
+      "min_bytes": 216701,
+      "max_bytes": 1253509,
+      "count": 114
+    },
+    {
+      "min_bytes": 1253510,
+      "max_bytes": 7250936,
+      "count": 9
+    },
+    {
+      "min_bytes": 7250937,
+      "max_bytes": 41943064,
+      "count": 8
+    }
+  ],
+  "allocator_type_distribution": {
+    "MALLOC": 115,
+    "MMAP": 108,
+    "CALLOC": 46,
+    "REALLOC": 25
+  },
+  "top_allocations_by_size": [
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/dict_operations.py:7",
+      "size": 148775480
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/dict_operations.py:10",
+      "size": 132001336
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/dict_operations.py:13",
+      "size": 41811488
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:259",
+      "size": 136165
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:258",
+      "size": 131073
+    }
+  ],
+  "top_allocations_by_count": [
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/dict_operations.py:7",
+      "count": 81
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:259",
+      "count": 65
+    },
+    {
+      "location": "main:/tmp/benchmarks_66uqwybi/dict_operations.py:10",
+      "count": 64
+    },
+    {
+      "location": "_compile_bytecode:<frozen importlib._bootstrap_external>:514",
+      "count": 27
+    },
+    {
+      "location": "namedtuple:/tmp/cpython/Lib/collections/__init__.py:447",
+      "count": 17
+    }
+  ],
+  "metadata": {
+    "start_time": "2025-06-21 17:23:23.659000+01:00",
+    "end_time": "2025-06-21 17:23:23.959000+01:00",
+    "total_allocations": 570,
+    "total_frames": 44,
+    "peak_memory": 228616369,
+    "command_line": "/tmp/cpython_venv_fu7okc4n/bin/memray run --output benchmark_results/6a16b3c440cf9ecabecd3e90f44310e3b0765780/dict_operations.bin /tmp/benchmarks_66uqwybi/dict_operations.py",
+    "pid": 3341799,
+    "main_thread_id": 1,
+    "python_allocator": "pymalloc",
+    "has_native_traces": false,
+    "trace_python_allocators": false,
+    "file_format": 0
+  }
+}

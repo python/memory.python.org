@@ -1,0 +1,120 @@
+{
+  "total_num_allocations": 3003472,
+  "total_bytes_allocated": 314234738,
+  "allocation_size_histogram": [
+    {
+      "min_bytes": 0,
+      "max_bytes": 4,
+      "count": 11
+    },
+    {
+      "min_bytes": 5,
+      "max_bytes": 32,
+      "count": 2034406
+    },
+    {
+      "min_bytes": 33,
+      "max_bytes": 192,
+      "count": 968540
+    },
+    {
+      "min_bytes": 193,
+      "max_bytes": 1118,
+      "count": 425
+    },
+    {
+      "min_bytes": 1119,
+      "max_bytes": 6475,
+      "count": 31
+    },
+    {
+      "min_bytes": 6476,
+      "max_bytes": 37461,
+      "count": 25
+    },
+    {
+      "min_bytes": 37462,
+      "max_bytes": 216700,
+      "count": 11
+    },
+    {
+      "min_bytes": 216701,
+      "max_bytes": 1253509,
+      "count": 6
+    },
+    {
+      "min_bytes": 1253510,
+      "max_bytes": 7250936,
+      "count": 9
+    },
+    {
+      "min_bytes": 7250937,
+      "max_bytes": 41943064,
+      "count": 8
+    }
+  ],
+  "allocator_type_distribution": {
+    "PYMALLOC_MALLOC": 3002911,
+    "PYMALLOC_CALLOC": 396,
+    "PYMALLOC_REALLOC": 164,
+    "MALLOC": 1
+  },
+  "top_allocations_by_size": [
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:10",
+      "size": 123492808
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:7",
+      "size": 115751832
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:13",
+      "size": 41812048
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:6",
+      "size": 31991776
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:259",
+      "size": 188013
+    }
+  ],
+  "top_allocations_by_count": [
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:10",
+      "count": 1000016
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:7",
+      "count": 999920
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:6",
+      "count": 999743
+    },
+    {
+      "location": "main:/tmp/benchmarks_vco_qi29/dict_operations.py:16",
+      "count": 1624
+    },
+    {
+      "location": "_get_code_from_file:<frozen runpy>:259",
+      "count": 815
+    }
+  ],
+  "metadata": {
+    "start_time": "2025-06-21 17:42:55.654000+01:00",
+    "end_time": "2025-06-21 17:42:57.294000+01:00",
+    "total_allocations": 6006618,
+    "total_frames": 243,
+    "peak_memory": 219120560,
+    "command_line": "/tmp/cpython_venv_sxstfubp/bin/memray run --native --trace-python-allocators --output benchmark_results/c5ea8e8e8fc725f39ed23ff6259b3cc157a0785f/dict_operations.bin /tmp/benchmarks_vco_qi29/dict_operations.py",
+    "pid": 3761524,
+    "main_thread_id": 1,
+    "python_allocator": "pymalloc",
+    "has_native_traces": true,
+    "trace_python_allocators": true,
+    "file_format": 0
+  }
+}
