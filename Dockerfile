@@ -43,7 +43,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy the backend source code
 COPY ./backend/ .
 
-
 # Copy the nextjs application
 COPY --from=frontend-builder --chown=nobody /app/.next/standalone ./
 COPY --from=frontend-builder --chown=nobody /app/.next/static ./.next/static
+
+COPY ./scripts ./scripts
