@@ -1,22 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/dumb-init /bin/sh
 
-import asyncio
-from mv import Minivisor
-
-
-async def main(mv: Minivisor | None = None) -> None:
-    if mv is None:
-        mv = Minivisor()
-    await mv.spawn("node", "server.js", grace_period=1)
-    await mv.spawn(
-        "socat",
-        "UNIX-LISTEN:/var/run/cabotage/cabotage.sock,fork",
-        "TCP:127.0.0.1:3000",
-        grace_period=1,
-    )
-
-    await mv.wait_until_any_terminates()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+socat UNIX-LISTEN:/var/run/cabotage/cabotage.sock,fork TCP:127.0.0.1:3000 &
+node server.js

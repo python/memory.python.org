@@ -22,12 +22,13 @@ ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM python:3.13-slim-bookworm AS runner
+FROM base AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
 RUN apt-get update && apt-get install -y \
+    dumb-init \
     wget \
     socat \
     nodejs \
