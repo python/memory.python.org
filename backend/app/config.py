@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # GitHub OAuth Configuration
     github_client_id: str = ""
     github_client_secret: str = ""
-    oauth_redirect_uri: str = "http://localhost:3000/auth/callback"
+    oauth_redirect_uri: str = "http://localhost:3000/admin/auth/callback"
     oauth_state_secret: str = "your-secret-key-change-me"
     
     # Admin authorization via GitHub usernames
