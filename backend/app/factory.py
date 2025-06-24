@@ -18,7 +18,13 @@ def create_app(settings=None) -> FastAPI:
         settings = get_settings()
     
     # Create FastAPI instance
-    app = FastAPI(title=settings.api_title, version=settings.api_version)
+    app = FastAPI(
+        title=settings.api_title,
+        version=settings.api_version,
+        docs_url="/api/docs",
+        redoc_url="/api/redoc",
+        openapi_url="/api/openapi.json"
+    )
     
     # Store dependencies in app state
     app.state.settings = settings
