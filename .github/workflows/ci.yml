@@ -1,0 +1,11 @@
+name: Dummy-CI
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - name: Pass
+      run: echo Success!
