@@ -59,7 +59,7 @@ class TokenAnalytics(BaseModel):
     never_used_tokens: int
     recent_active_tokens: int
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
 @router.get("/auth/github")
