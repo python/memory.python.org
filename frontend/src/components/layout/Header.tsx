@@ -10,7 +10,8 @@ import {
   Moon,
   GitCompare,
   GitBranch,
-} from 'lucide-react'; // Removed UploadCloud
+  Info,
+} from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
@@ -23,7 +24,7 @@ const navItems = [
   { href: '/version-comparison', label: 'Version Comparison', icon: GitBranch },
   { href: '/diff', label: 'Inspect Run Results', icon: GitCompareArrows },
   { href: '/binaries', label: 'Binary Configurations', icon: ListChecks },
-  // { href: '/upload', label: 'Upload Data', icon: UploadCloud }, // Removed
+  { href: '/about', label: 'About', icon: Info },
 ];
 
 export default function Header() {

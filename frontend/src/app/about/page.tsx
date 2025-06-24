@@ -9,7 +9,8 @@ import {
 } from '@/components/ui/collapsible';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { api } from '@/lib/api';
 
 interface FAQItem {
   question: string;
@@ -17,8 +18,42 @@ interface FAQItem {
   icon?: React.ElementType;
 }
 
+interface AdminUser {
+  id: number;
+  github_username: string;
+  added_by: string;
+  added_at: string;
+  is_active: boolean;
+  notes?: string;
+}
+
 export default function AboutPage() {
   const [openFAQ, setOpenFAQ] = useState<string | null>(null);
+  const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [isLoadingAdmins, setIsLoadingAdmins] = useState(true);
+
+  useEffect(() => {
+    const fetchAdminUsers = async () => {
+      try {
+        const users = await api.getAdminUsers();
+        setAdminUsers(users.filter(user => user.is_active));
+      } catch (error) {
+        console.error('Failed to fetch admin users:', error);
+        // Fallback to hardcoded admin if API fails
+        setAdminUsers([{
+          id: 1,
+          github_username: 'pablogsal',
+          added_by: 'system',
+          added_at: new Date().toISOString(),
+          is_active: true
+        }]);
+      } finally {
+        setIsLoadingAdmins(false);
+      }
+    };
+
+    fetchAdminUsers();
+  }, []);
 
   const faqItems: FAQItem[] = [
     {
@@ -313,25 +348,31 @@ export default function AboutPage() {
               Reach out via GitHub or the CPython Discord channel
             </p>
             <div className="flex flex-wrap gap-4 justify-center">
-              {/* Pablo's profile */}
-              <Link
-                href="https://github.com/pablogsal"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-3 px-4 py-2 rounded-lg bg-background hover:bg-muted group"
-              >
-                <Image
-                  src="https://github.com/pablogsal.png"
-                  alt="Pablo Galindo Salgado"
-                  width={40}
-                  height={40}
-                  className="rounded-full ring-2 ring-muted group-hover:ring-primary"
-                />
-                <div className="text-left">
-                  <p className="font-medium group-hover:text-primary">Pablo Galindo Salgado</p>
-                  <p className="text-sm text-muted-foreground">@pablogsal</p>
-                </div>
-              </Link>
+              {isLoadingAdmins ? (
+                <div className="text-muted-foreground">Loading maintainers...</div>
+              ) : (
+                adminUsers.map((admin) => (
+                  <Link
+                    key={admin.id}
+                    href={`https://github.com/${admin.github_username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 px-4 py-2 rounded-lg bg-background hover:bg-muted group"
+                  >
+                    <Image
+                      src={`https://github.com/${admin.github_username}.png`}
+                      alt={admin.github_username}
+                      width={40}
+                      height={40}
+                      className="rounded-full ring-2 ring-muted group-hover:ring-primary"
+                    />
+                    <div className="text-left">
+                      <p className="font-medium group-hover:text-primary">{admin.github_username}</p>
+                      <p className="text-sm text-muted-foreground">@{admin.github_username}</p>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         </CardContent>

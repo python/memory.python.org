@@ -251,13 +251,13 @@ export const api = {
 
   // Token management endpoints
   getTokens: () =>
-    fetchApi<AuthToken[]>('/api/admin/tokens', {
+    fetchApi<AuthToken[]>('/admin/tokens', {
       credentials: 'include',
     }),
 
   createToken: (tokenData: TokenCreate) =>
     fetchApi<{ success: boolean; token: string; token_info: AuthToken }>(
-      '/api/admin/tokens',
+      '/admin/tokens',
       {
         method: 'POST',
         credentials: 'include',
@@ -266,32 +266,32 @@ export const api = {
     ),
 
   updateToken: (tokenId: number, tokenUpdate: TokenUpdate) =>
-    fetchApi<AuthToken>(`/api/admin/tokens/${tokenId}`, {
+    fetchApi<AuthToken>(`/admin/tokens/${tokenId}`, {
       method: 'PUT',
       credentials: 'include',
       body: JSON.stringify(tokenUpdate),
     }),
 
   deactivateToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}/deactivate`, {
+    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}/deactivate`, {
       method: 'POST',
       credentials: 'include',
     }),
 
   activateToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}/activate`, {
+    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}/activate`, {
       method: 'POST',
       credentials: 'include',
     }),
 
   deleteToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
+    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}`, {
       method: 'DELETE',
       credentials: 'include',
     }),
 
   getTokenAnalytics: () =>
-    fetchApi<TokenAnalytics>('/api/admin/tokens/analytics', {
+    fetchApi<TokenAnalytics>('/admin/tokens/analytics', {
       credentials: 'include',
     }),
 
@@ -304,7 +304,7 @@ export const api = {
       added_at: string;
       is_active: boolean;
       notes?: string;
-    }>>('/api/admin/users', {
+    }>>('/admin/users', {
       credentials: 'include',
     }),
 };
