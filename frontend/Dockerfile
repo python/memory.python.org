@@ -15,7 +15,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Set the API base URL as a build argument
-ARG NEXT_PUBLIC_API_BASE=http://localhost:8000
+ARG NEXT_PUBLIC_API_BASE=http://localhost:8000/api
 ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 
 # Build the application

@@ -12,7 +12,7 @@ import type {
   TokenAnalytics,
 } from './types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
 class ApiError extends Error {
   constructor(
@@ -98,12 +98,12 @@ async function fetchApi<T>(
 export const api = {
   // Commit endpoints
   getCommits: (skip: number = 0, limit: number = 100) =>
-    fetchApi<Commit[]>(`/api/commits?skip=${skip}&limit=${limit}`),
-  getCommit: (sha: string) => fetchApi<Commit>(`/api/commits/${sha}`),
+    fetchApi<Commit[]>(`/commits?skip=${skip}&limit=${limit}`),
+  getCommit: (sha: string) => fetchApi<Commit>(`/commits/${sha}`),
 
   // Binary endpoints
-  getBinaries: () => fetchApi<Binary[]>(`/api/binaries?_t=${Date.now()}`),
-  getBinary: (id: string) => fetchApi<Binary>(`/api/binaries/${id}`),
+  getBinaries: () => fetchApi<Binary[]>(`/binaries?_t=${Date.now()}`),
+  getBinary: (id: string) => fetchApi<Binary>(`/binaries/${id}`),
   getEnvironmentsForBinary: (binaryId: string) =>
     fetchApi<
       Array<{
@@ -113,7 +113,7 @@ export const api = {
         run_count: number;
         commit_count: number;
       }>
-    >(`/api/binaries/${binaryId}/environments`),
+    >(`/binaries/${binaryId}/environments`),
   getCommitsForBinaryAndEnvironment: (
     binaryId: string,
     environmentId: string
@@ -127,19 +127,19 @@ export const api = {
         python_version: { major: number; minor: number; patch: number };
         run_timestamp: string;
       }>
-    >(`/api/binaries/${binaryId}/environments/${environmentId}/commits`),
+    >(`/binaries/${binaryId}/environments/${environmentId}/commits`),
 
   // Environment endpoints
-  getEnvironments: () => fetchApi<Environment[]>('/api/environments'),
+  getEnvironments: () => fetchApi<Environment[]>('/environments'),
   getEnvironment: (id: string) =>
-    fetchApi<Environment>(`/api/environments/${id}`),
+    fetchApi<Environment>(`/environments/${id}`),
 
   // Python version endpoints
   getPythonVersions: () =>
-    fetchApi<PythonVersionFilterOption[]>('/api/python-versions'),
+    fetchApi<PythonVersionFilterOption[]>('/python-versions'),
 
   // Benchmark endpoints
-  getAllBenchmarks: () => fetchApi<string[]>('/api/benchmarks'),
+  getAllBenchmarks: () => fetchApi<string[]>('/benchmarks'),
   getBenchmarkNames: (params: {
     environment_id: string;
     binary_id: string;
@@ -152,7 +152,7 @@ export const api = {
     queryParams.append('python_major', params.python_major.toString());
     queryParams.append('python_minor', params.python_minor.toString());
 
-    return fetchApi<string[]>(`/api/benchmark-names?${queryParams.toString()}`);
+    return fetchApi<string[]>(`/benchmark-names?${queryParams.toString()}`);
   },
 
   // Diff endpoint
@@ -168,7 +168,7 @@ export const api = {
     queryParams.append('environment_id', params.environment_id);
     queryParams.append('metric_key', params.metric_key);
 
-    return fetchApi<DiffTableRow[]>(`/api/diff?${queryParams.toString()}`);
+    return fetchApi<DiffTableRow[]>(`/diff?${queryParams.toString()}`);
   },
 
   // Upload endpoint
@@ -183,7 +183,7 @@ export const api = {
     };
     benchmark_results: BenchmarkResultJson[];
   }) =>
-    fetchApi<{ success: boolean }>('/api/upload', {
+    fetchApi<{ success: boolean }>('/upload', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
@@ -209,7 +209,7 @@ export const api = {
         high_watermark_bytes: number;
         total_allocated_bytes: number;
       }>
-    >(`/api/trends?${queryParams.toString()}`);
+    >(`/trends?${queryParams.toString()}`);
   },
 
   // Batch trends endpoint
@@ -232,7 +232,7 @@ export const api = {
           total_allocated_bytes: number;
         }>
       >;
-    }>('/api/trends-batch', {
+    }>('/trends-batch', {
       method: 'POST',
       body: JSON.stringify({
         trend_queries: trendQueries.map((query) => ({
@@ -247,7 +247,7 @@ export const api = {
 
   // Flamegraph endpoint
   getFlamegraph: (id: string) =>
-    fetchApi<{ flamegraph_html: string }>(`/api/flamegraph/${id}`),
+    fetchApi<{ flamegraph_html: string }>(`/flamegraph/${id}`),
 
   // Token management endpoints
   getTokens: () =>
