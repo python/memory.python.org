@@ -1,0 +1,2 @@
+web: python -m uvicorn app.main:app --uds /var/run/cabotage/cabotage.sock
+release: echo 'doin deploy things'

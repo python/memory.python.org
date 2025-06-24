@@ -1,8 +1,7 @@
-FROM node:18-alpine AS base
+FROM node:18-bookworm AS base
 
 # Install dependencies only when needed
 FROM base AS deps
-RUN apk add --no-cache libc6-compat wget
 WORKDIR /app
 
 # Copy package files
@@ -23,12 +22,16 @@ ENV NEXT_PUBLIC_API_BASE=$NEXT_PUBLIC_API_BASE
 RUN npm run build
 
 # Production image, copy all the files and run next
-FROM base AS runner
+FROM python:3.13-slim-bookworm AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apk add --no-cache wget
+RUN apt-get update && apt-get install -y \
+    wget \
+    socat \
+    nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -43,6 +46,8 @@ RUN chown nextjs:nodejs .next
 # Automatically leverage output traces to reduce image size
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+COPY ./scripts ./scripts
 
 USER nextjs
 
