@@ -307,6 +307,16 @@ export const api = {
     }>>('/admin/users', {
       credentials: 'include',
     }),
+
+  // Public endpoints
+  getMaintainers: () =>
+    fetchApi<Array<{
+      id: number;
+      github_username: string;
+      added_by: string;
+      added_at: string;
+      is_active: boolean;
+    }>>('/maintainers'),
 };
 
 export default api;

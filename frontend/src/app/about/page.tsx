@@ -35,10 +35,10 @@ export default function AboutPage() {
   useEffect(() => {
     const fetchAdminUsers = async () => {
       try {
-        const users = await api.getAdminUsers();
+        const users = await api.getMaintainers();
         setAdminUsers(users.filter(user => user.is_active));
       } catch (error) {
-        console.error('Failed to fetch admin users:', error);
+        console.error('Failed to fetch maintainers:', error);
         // Fallback to hardcoded admin if API fails
         setAdminUsers([{
           id: 1,

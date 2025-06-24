@@ -169,3 +169,14 @@ class BenchmarkUpload(BaseModel):
     environment_id: str
     python_version: PythonVersion
     benchmark_results: List[BenchmarkResultJson]
+
+
+class AdminUserPublic(BaseModel):
+    id: int
+    github_username: str
+    added_by: str
+    added_at: datetime
+    is_active: bool
+    
+    class Config:
+        from_attributes = True

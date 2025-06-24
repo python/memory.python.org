@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .database import create_tables
 from .logging_config import LoggingManager, request_id_var, request_start_time_var, get_logger
-from .routers import health, commits, binaries, environments, runs, benchmarks, upload, admin
+from .routers import health, commits, binaries, environments, runs, benchmarks, upload, admin, public
 
 
 def create_app(settings=None) -> FastAPI:
@@ -155,5 +155,6 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(benchmarks.router)
     app.include_router(upload.router)
     app.include_router(admin.router)
+    app.include_router(public.router)
     
     return app
