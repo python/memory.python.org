@@ -251,13 +251,13 @@ export const api = {
 
   // Token management endpoints
   getTokens: () =>
-    fetchApi<AuthToken[]>('/admin/tokens', {
+    fetchApi<AuthToken[]>('/api/admin/tokens', {
       credentials: 'include',
     }),
 
   createToken: (tokenData: TokenCreate) =>
     fetchApi<{ success: boolean; token: string; token_info: AuthToken }>(
-      '/admin/tokens',
+      '/api/admin/tokens',
       {
         method: 'POST',
         credentials: 'include',
@@ -266,32 +266,45 @@ export const api = {
     ),
 
   updateToken: (tokenId: number, tokenUpdate: TokenUpdate) =>
-    fetchApi<AuthToken>(`/admin/tokens/${tokenId}`, {
+    fetchApi<AuthToken>(`/api/admin/tokens/${tokenId}`, {
       method: 'PUT',
       credentials: 'include',
       body: JSON.stringify(tokenUpdate),
     }),
 
   deactivateToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}/deactivate`, {
+    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}/deactivate`, {
       method: 'POST',
       credentials: 'include',
     }),
 
   activateToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}/activate`, {
+    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}/activate`, {
       method: 'POST',
       credentials: 'include',
     }),
 
   deleteToken: (tokenId: number) =>
-    fetchApi<{ success: boolean }>(`/admin/tokens/${tokenId}`, {
+    fetchApi<{ success: boolean }>(`/api/admin/tokens/${tokenId}`, {
       method: 'DELETE',
       credentials: 'include',
     }),
 
   getTokenAnalytics: () =>
-    fetchApi<TokenAnalytics>('/admin/tokens/analytics', {
+    fetchApi<TokenAnalytics>('/api/admin/tokens/analytics', {
+      credentials: 'include',
+    }),
+
+  // Admin user endpoints
+  getAdminUsers: () =>
+    fetchApi<Array<{
+      id: number;
+      github_username: string;
+      added_by: string;
+      added_at: string;
+      is_active: boolean;
+      notes?: string;
+    }>>('/api/admin/users', {
       credentials: 'include',
     }),
 };
