@@ -49,6 +49,12 @@ import type {
   Binary,
   Environment,
 } from '@/lib/types';
+import type {
+  TrendDataPoint,
+  BatchTrendsResponse,
+  BenchmarkNamesQueryParams,
+  TrendQueryParams,
+} from '@/types/api';
 import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -79,19 +85,7 @@ export default function BuildComparisonPage() {
 
   // Store trend data for each binary-benchmark combination
   const [trendData, setTrendData] = useState<
-    Record<
-      string,
-      Record<
-        string,
-        Array<{
-          sha: string;
-          timestamp: string;
-          python_version: string;
-          high_watermark_bytes: number;
-          total_allocated_bytes: number;
-        }>
-      >
-    >
+    Record<string, Record<string, TrendDataPoint[]>>
   >({});
 
   const [selectedEnvironmentId, setSelectedEnvironmentId] = useState<
@@ -207,7 +201,7 @@ export default function BuildComparisonPage() {
           binary_id: selectedBinaries[0],
           python_major: versionOption.major,
           python_minor: versionOption.minor,
-        });
+        } satisfies BenchmarkNamesQueryParams);
 
         setAllBenchmarkNames(uniqueBenchmarks);
 
@@ -262,7 +256,7 @@ export default function BuildComparisonPage() {
         }
 
         // Create batch request for ALL benchmarks and selected binaries (load everything upfront)
-        const trendQueries = allBenchmarkNames.flatMap((benchmark) =>
+        const trendQueries: TrendQueryParams[] = allBenchmarkNames.flatMap((benchmark) =>
           selectedBinaries.map((binaryId) => ({
             benchmark_name: benchmark,
             binary_id: binaryId,
@@ -274,10 +268,10 @@ export default function BuildComparisonPage() {
         );
 
         // Make single batch request for all data
-        const batchResponse = await api.getBatchBenchmarkTrends(trendQueries);
+        const batchResponse: BatchTrendsResponse = await api.getBatchBenchmarkTrends(trendQueries);
 
         // Update trendData state with all benchmark results
-        const newTrendData: typeof trendData = {};
+        const newTrendData: Record<string, Record<string, TrendDataPoint[]>> = {};
 
         for (const [key, trends] of Object.entries(batchResponse.results)) {
           const [binaryId, benchmarkName] = key.split(':');
@@ -333,7 +327,7 @@ export default function BuildComparisonPage() {
       benchmarkMode === 'all' ? allBenchmarkNames : selectedBenchmarks;
 
     // Extract data from trendData structure
-    const results: any[] = [];
+    const results: EnrichedBenchmarkResult[] = [];
 
     benchmarksToInclude.forEach((benchmarkName) => {
       selectedBinaries.forEach((binaryId) => {

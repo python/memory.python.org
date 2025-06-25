@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Key, Power, PowerOff, Trash2, Copy, Check } from 'lucide-react';
-import api from '@/lib/api';
+import { api } from '@/lib/api';
 import type { AuthToken, TokenAnalytics } from '@/lib/types';
 import {
   Dialog,
@@ -43,7 +43,6 @@ export default function TokensManager() {
       setTokens(tokensData);
       setAnalytics(analyticsData);
     } catch (error) {
-      console.error('Failed to load data:', error);
       toast({
         title: 'Error',
         description: 'Failed to load token data',
@@ -78,7 +77,6 @@ export default function TokensManager() {
         } successfully`,
       });
     } catch (error) {
-      console.error('Failed to toggle token:', error);
       toast({
         title: 'Error',
         description: 'Failed to update token status',
@@ -105,7 +103,6 @@ export default function TokensManager() {
         description: 'Token deleted successfully',
       });
     } catch (error) {
-      console.error('Failed to delete token:', error);
       toast({
         title: 'Error',
         description: 'Failed to delete token',
@@ -130,7 +127,6 @@ export default function TokensManager() {
         description: 'Token created successfully',
       });
     } catch (error) {
-      console.error('Failed to create token:', error);
       toast({
         title: 'Error',
         description: 'Failed to create token',
@@ -161,7 +157,7 @@ export default function TokensManager() {
         setTimeout(() => setCopied(false), 2000);
       } else {
         // Select the text and explain to the user
-        const tokenInput = document.getElementById('token');
+        const tokenInput = document.getElementById('token') as HTMLInputElement;
         if (tokenInput) {
           tokenInput.select();
           tokenInput.setSelectionRange(0, 99999); // For mobile devices
@@ -175,11 +171,9 @@ export default function TokensManager() {
         });
       }
     } catch (error) {
-      console.error('Failed to copy token:', error);
-
       // Select the text and explain
       try {
-        const tokenInput = document.getElementById('token');
+        const tokenInput = document.getElementById('token') as HTMLInputElement;
         if (tokenInput) {
           tokenInput.select();
           tokenInput.setSelectionRange(0, 99999);
@@ -464,7 +458,7 @@ export default function TokensManager() {
                         value={createdToken}
                         readOnly
                         className="font-mono text-sm select-all"
-                        onClick={(e) => e.target.select()}
+                        onClick={(e) => (e.target as HTMLInputElement).select()}
                       />
                       <Button
                         type="button"

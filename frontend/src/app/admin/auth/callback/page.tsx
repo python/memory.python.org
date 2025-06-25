@@ -67,7 +67,7 @@ function AuthCallbackContent() {
       } catch (error) {
         console.error('Auth callback error:', error);
         setStatus('error');
-        setErrorMessage(error.message || 'Authentication failed');
+        setErrorMessage(error instanceof Error ? error.message : 'Authentication failed');
       }
     };
 

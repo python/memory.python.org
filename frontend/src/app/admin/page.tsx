@@ -47,7 +47,7 @@ export default function AdminPage() {
         setUser(userData);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+      // Silent fail for auth check - user will see login screen
     } finally {
       setLoading(false);
     }
@@ -62,7 +62,6 @@ export default function AdminPage() {
       // Redirect to GitHub OAuth
       window.location.href = data.auth_url;
     } catch (error) {
-      console.error('GitHub auth failed:', error);
       toast({
         title: 'Authentication Failed',
         description: 'Failed to initiate GitHub authentication',
@@ -85,7 +84,11 @@ export default function AdminPage() {
         description: 'You have been successfully logged out',
       });
     } catch (error) {
-      console.error('Logout failed:', error);
+      toast({
+        title: 'Logout Failed',
+        description: 'Failed to logout properly',
+        variant: 'destructive',
+      });
     }
   };
 

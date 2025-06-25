@@ -47,6 +47,12 @@ import type {
   Binary,
   Environment,
 } from '@/lib/types';
+import type {
+  TrendDataPoint,
+  BatchTrendsResponse,
+  BenchmarkNamesQueryParams,
+  TrendQueryParams,
+} from '@/types/api';
 import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -99,16 +105,7 @@ export default function BenchmarkTrendPage() {
   const [mounted, setMounted] = useState(false);
   const { toast } = useToast();
   const [trendData, setTrendData] = useState<
-    Record<
-      string,
-      Array<{
-        sha: string;
-        timestamp: string;
-        python_version: string;
-        high_watermark_bytes: number;
-        total_allocated_bytes: number;
-      }>
-    >
+    Record<string, TrendDataPoint[]>
   >({});
 
   useEffect(() => setMounted(true), []);
@@ -241,7 +238,7 @@ export default function BenchmarkTrendPage() {
           binary_id: selectedBinaryId,
           python_major: versionOption.major,
           python_minor: versionOption.minor,
-        });
+        } satisfies BenchmarkNamesQueryParams);
 
         setAllBenchmarkNames(uniqueBenchmarks);
 
@@ -296,7 +293,7 @@ export default function BenchmarkTrendPage() {
       setDataProcessing(true);
       try {
         // Create batch request for all selected benchmarks
-        const trendQueries = selectedBenchmarks.map((benchmark) => ({
+        const trendQueries: TrendQueryParams[] = selectedBenchmarks.map((benchmark) => ({
           benchmark_name: benchmark,
           binary_id: selectedBinaryId,
           environment_id: selectedEnvironmentId,
@@ -306,10 +303,10 @@ export default function BenchmarkTrendPage() {
         }));
 
         // Make single batch request instead of multiple individual requests
-        const batchResponse = await api.getBatchBenchmarkTrends(trendQueries);
+        const batchResponse: BatchTrendsResponse = await api.getBatchBenchmarkTrends(trendQueries);
 
         // Update trendData state with batch results
-        const newTrendData: typeof trendData = {};
+        const newTrendData: Record<string, TrendDataPoint[]> = {};
 
         for (const [key, trends] of Object.entries(batchResponse.results)) {
           const [, benchmarkName] = key.split(':');

@@ -18,21 +18,3 @@ export function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue;
 }
 
-export function useDebouncedCallback<T extends (...args: any[]) => any>(
-  callback: T,
-  delay: number
-): T {
-  const [debouncedCallback, setDebouncedCallback] = useState<T>();
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedCallback(() => callback);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [callback, delay]);
-
-  return (debouncedCallback || callback) as T;
-}

@@ -187,7 +187,7 @@ export default function RunsManager() {
       console.error('Error deleting run:', error);
       toast({
         title: 'Error',
-        description: `Failed to delete run: ${error.message}`,
+        description: `Failed to delete run: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     } finally {

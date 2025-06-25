@@ -2,7 +2,6 @@ import type {
   Binary,
   Commit,
   DiffTableRow,
-  EnrichedBenchmarkResult,
   Environment,
   PythonVersionFilterOption,
   BenchmarkResultJson,
@@ -11,6 +10,19 @@ import type {
   TokenUpdate,
   TokenAnalytics,
 } from './types';
+import type {
+  ApiResponse,
+  ErrorResponse,
+  TrendDataPoint,
+  EnvironmentSummary,
+  CommitSummary,
+  BatchTrendsResponse,
+  UploadResponse,
+  TrendQueryParams,
+  BenchmarkNamesQueryParams,
+  DiffQueryParams,
+  UploadRequestData,
+} from '../types/api';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
@@ -58,7 +70,7 @@ async function fetchApi<T>(
 
       // Try to get more detailed error message from response
       try {
-        const errorData = await response.json();
+        const errorData: ErrorResponse = await response.json();
         if (errorData.detail) {
           errorMessage =
             typeof errorData.detail === 'string'
@@ -86,13 +98,33 @@ async function fetchApi<T>(
     }
 
     // Handle timeout
-    if (error.name === 'AbortError') {
+    if (error instanceof DOMException && error.name === 'AbortError') {
       throw new NetworkError('Request timed out. Please try again.');
     }
 
     // Re-throw other errors
     throw error;
   }
+}
+
+// Utility functions for response handling
+function wrapApiResponse<T>(data: T, message?: string): ApiResponse<T> {
+  return {
+    data,
+    message,
+    status: 200,
+  };
+}
+
+// Helper for creating typed query parameters
+function createQueryParams(params: Record<string, any>): URLSearchParams {
+  const queryParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      queryParams.append(key, value.toString());
+    }
+  });
+  return queryParams;
 }
 
 export const api = {
@@ -105,29 +137,12 @@ export const api = {
   getBinaries: () => fetchApi<Binary[]>(`/binaries?_t=${Date.now()}`),
   getBinary: (id: string) => fetchApi<Binary>(`/binaries/${id}`),
   getEnvironmentsForBinary: (binaryId: string) =>
-    fetchApi<
-      Array<{
-        id: string;
-        name: string;
-        description?: string;
-        run_count: number;
-        commit_count: number;
-      }>
-    >(`/binaries/${binaryId}/environments`),
+    fetchApi<EnvironmentSummary[]>(`/binaries/${binaryId}/environments`),
   getCommitsForBinaryAndEnvironment: (
     binaryId: string,
     environmentId: string
   ) =>
-    fetchApi<
-      Array<{
-        sha: string;
-        timestamp: string;
-        message: string;
-        author: string;
-        python_version: { major: number; minor: number; patch: number };
-        run_timestamp: string;
-      }>
-    >(`/binaries/${binaryId}/environments/${environmentId}/commits`),
+    fetchApi<CommitSummary[]>(`/binaries/${binaryId}/environments/${environmentId}/commits`),
 
   // Environment endpoints
   getEnvironments: () => fetchApi<Environment[]>('/environments'),
@@ -140,113 +155,37 @@ export const api = {
 
   // Benchmark endpoints
   getAllBenchmarks: () => fetchApi<string[]>('/benchmarks'),
-  getBenchmarkNames: (params: {
-    environment_id: string;
-    binary_id: string;
-    python_major: number;
-    python_minor: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    queryParams.append('environment_id', params.environment_id);
-    queryParams.append('binary_id', params.binary_id);
-    queryParams.append('python_major', params.python_major.toString());
-    queryParams.append('python_minor', params.python_minor.toString());
-
+  getBenchmarkNames: (params: BenchmarkNamesQueryParams) => {
+    const queryParams = createQueryParams(params);
     return fetchApi<string[]>(`/benchmark-names?${queryParams.toString()}`);
   },
 
   // Diff endpoint
-  getDiffTable: (params: {
-    commit_sha: string;
-    binary_id: string;
-    environment_id: string;
-    metric_key: string;
-  }) => {
-    const queryParams = new URLSearchParams();
-    queryParams.append('commit_sha', params.commit_sha);
-    queryParams.append('binary_id', params.binary_id);
-    queryParams.append('environment_id', params.environment_id);
-    queryParams.append('metric_key', params.metric_key);
-
+  getDiffTable: (params: DiffQueryParams) => {
+    const queryParams = createQueryParams(params);
     return fetchApi<DiffTableRow[]>(`/diff?${queryParams.toString()}`);
   },
 
   // Upload endpoint
-  uploadBenchmarkResults: (data: {
-    commit_sha: string;
-    binary_id: string;
-    environment_id: string;
-    python_version: {
-      major: number;
-      minor: number;
-      patch: number;
-    };
-    benchmark_results: BenchmarkResultJson[];
-  }) =>
-    fetchApi<{ success: boolean }>('/upload', {
+  uploadBenchmarkResults: (data: UploadRequestData) =>
+    fetchApi<UploadResponse>('/upload', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
 
   // Optimized trends endpoint
-  getBenchmarkTrends: (params: {
-    benchmark_name: string;
-    binary_id: string;
-    environment_id: string;
-    python_major: number;
-    python_minor: number;
-    limit?: number;
-  }) => {
-    const queryParams = new URLSearchParams();
-    queryParams.append('benchmark_name', params.benchmark_name);
-    queryParams.append('binary_id', params.binary_id);
-    queryParams.append('environment_id', params.environment_id);
-    queryParams.append('python_major', params.python_major.toString());
-    queryParams.append('python_minor', params.python_minor.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
-
-    return fetchApi<
-      Array<{
-        sha: string;
-        timestamp: string;
-        python_version: string;
-        high_watermark_bytes: number;
-        total_allocated_bytes: number;
-      }>
-    >(`/trends?${queryParams.toString()}`);
+  getBenchmarkTrends: (params: TrendQueryParams) => {
+    const queryParams = createQueryParams(params);
+    return fetchApi<TrendDataPoint[]>(`/trends?${queryParams.toString()}`);
   },
 
   // Batch trends endpoint
-  getBatchBenchmarkTrends: (
-    trendQueries: Array<{
-      benchmark_name: string;
-      binary_id: string;
-      environment_id: string;
-      python_major: number;
-      python_minor: number;
-      limit?: number;
-    }>
-  ) => {
-    return fetchApi<{
-      results: Record<
-        string,
-        Array<{
-          sha: string;
-          timestamp: string;
-          python_version: string;
-          high_watermark_bytes: number;
-          total_allocated_bytes: number;
-        }>
-      >;
-    }>('/trends-batch', {
+  getBatchBenchmarkTrends: (trendQueries: TrendQueryParams[]) => {
+    return fetchApi<BatchTrendsResponse>('/trends-batch', {
       method: 'POST',
       body: JSON.stringify({
         trend_queries: trendQueries.map((query) => ({
-          benchmark_name: query.benchmark_name,
-          binary_id: query.binary_id,
-          environment_id: query.environment_id,
-          python_major: query.python_major,
-          python_minor: query.python_minor,
+          ...query,
           limit: query.limit || 50,
         })),
       }),

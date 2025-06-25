@@ -98,3 +98,20 @@ export type TokenAnalytics = {
   never_used_tokens: number;
   recent_active_tokens: number;
 };
+
+export type EnrichedBenchmarkResult = {
+  benchmark_name: string;
+  binary: { id: string };
+  environment: { id: string };
+  commit: {
+    sha: string;
+    timestamp: string;
+    message: string;
+    python_version: { major: number; minor: number };
+  };
+  result_json: {
+    high_watermark_bytes: number;
+    total_allocated_bytes: number;
+  };
+  run_python_version: { major: number; minor: number; patch: number };
+};

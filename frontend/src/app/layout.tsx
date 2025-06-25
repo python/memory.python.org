@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/providers/ThemeProvider';
-import { QueryProvider } from '@/providers/QueryProvider';
 import Header from '@/components/layout/Header';
 import { Toaster } from '@/components/ui/toaster';
 
@@ -43,20 +42,18 @@ export default function RootLayout({
         ></script>
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col">
-        <QueryProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="system"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <Header />
-            <main className="flex-grow container mx-auto px-4 py-8">
-              {children}
-            </main>
-            <Toaster />
-          </ThemeProvider>
-        </QueryProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <Header />
+          <main className="flex-grow container mx-auto px-4 py-8">
+            {children}
+          </main>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

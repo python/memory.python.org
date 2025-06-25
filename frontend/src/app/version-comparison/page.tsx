@@ -45,6 +45,12 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type { Commit, Binary, Environment } from '@/lib/types';
+import type {
+  TrendDataPoint,
+  BatchTrendsResponse,
+  BenchmarkNamesQueryParams,
+  TrendQueryParams,
+} from '@/types/api';
 import { api } from '@/lib/api';
 import { useToast } from '@/hooks/use-toast';
 
@@ -312,15 +318,16 @@ function VersionComparisonContent() {
         }
 
         // Get all benchmark names first
-        const benchmarkNames = await api.getBenchmarkNames({
+        const benchmarkNamesQuery: BenchmarkNamesQueryParams = {
           environment_id: selectedEnvironmentId,
           binary_id: selectedBinaryId,
           python_major: selectedCommits[0].python_version.major,
           python_minor: selectedCommits[0].python_version.minor,
-        });
+        };
+        const benchmarkNames = await api.getBenchmarkNames(benchmarkNamesQuery);
 
         // Create trend queries for each benchmark and each selected version
-        const allTrendQueries = benchmarkNames.flatMap((benchmarkName) =>
+        const allTrendQueries: TrendQueryParams[] = benchmarkNames.flatMap((benchmarkName) =>
           selectedCommits.map((commit) => ({
             benchmark_name: benchmarkName,
             binary_id: selectedBinaryId,
@@ -332,12 +339,12 @@ function VersionComparisonContent() {
         );
 
         // Get trend data for all benchmark/commit combinations
-        const batchResults = await api.getBatchBenchmarkTrends(allTrendQueries);
+        const batchResults: BatchTrendsResponse = await api.getBatchBenchmarkTrends(allTrendQueries);
 
         // Process the results into comparison matrix
         const matrixMap = new Map<string, ComparisonMatrix>();
 
-        Object.entries(batchResults.results).forEach(([queryKey, trends]) => {
+        Object.entries(batchResults.results).forEach(([queryKey, trends]: [string, TrendDataPoint[]]) => {
           if (trends.length === 0) return;
 
           // Extract benchmark name from query key and remove any binary prefix
@@ -349,7 +356,7 @@ function VersionComparisonContent() {
 
           // Find the trend data for each selected commit
           selectedCommits.forEach((commit) => {
-            const commitTrend = trends.find(
+            const commitTrend: TrendDataPoint | undefined = trends.find(
               (trend) => trend.sha === commit.sha
             );
             if (!commitTrend) return;

@@ -53,6 +53,7 @@ import type {
 } from '@/lib/types';
 import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
+import type { DiffQueryParams } from '@/types/api';
 import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
@@ -328,19 +329,23 @@ function DiffTableContent() {
       try {
         setDataProcessing(true);
         // Fetch diff data for both metrics
+        const highWatermarkParams = {
+          commit_sha: selectedCommitSha,
+          binary_id: selectedBinaryId,
+          environment_id: selectedEnvironmentId,
+          metric_key: 'high_watermark_bytes',
+        } satisfies DiffQueryParams;
+        
+        const totalAllocatedParams = {
+          commit_sha: selectedCommitSha,
+          binary_id: selectedBinaryId,
+          environment_id: selectedEnvironmentId,
+          metric_key: 'total_allocated_bytes',
+        } satisfies DiffQueryParams;
+        
         const [highWatermarkData, totalAllocatedData] = await Promise.all([
-          api.getDiffTable({
-            commit_sha: selectedCommitSha,
-            binary_id: selectedBinaryId,
-            environment_id: selectedEnvironmentId,
-            metric_key: 'high_watermark_bytes',
-          }),
-          api.getDiffTable({
-            commit_sha: selectedCommitSha,
-            binary_id: selectedBinaryId,
-            environment_id: selectedEnvironmentId,
-            metric_key: 'total_allocated_bytes',
-          }),
+          api.getDiffTable(highWatermarkParams),
+          api.getDiffTable(totalAllocatedParams),
         ]);
 
         // Combine the data into enhanced rows

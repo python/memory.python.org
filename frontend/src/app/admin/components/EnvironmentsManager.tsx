@@ -64,7 +64,6 @@ export default function EnvironmentsManager() {
         throw new Error('Failed to load environments');
       }
     } catch (error) {
-      console.error('Error loading environments:', error);
       toast({
         title: 'Error',
         description: 'Failed to load environments',
@@ -115,12 +114,11 @@ export default function EnvironmentsManager() {
         throw new Error(errorData.detail || 'Operation failed');
       }
     } catch (error) {
-      console.error('Error saving environment:', error);
       toast({
         title: 'Error',
         description: `Failed to ${
           editingEnvironment ? 'update' : 'create'
-        } environment: ${error.message}`,
+        } environment: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     }
@@ -160,10 +158,9 @@ export default function EnvironmentsManager() {
         throw new Error(errorData.detail || 'Delete failed');
       }
     } catch (error) {
-      console.error('Error deleting environment:', error);
       toast({
         title: 'Error',
-        description: `Failed to delete environment: ${error.message}`,
+        description: `Failed to delete environment: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     }

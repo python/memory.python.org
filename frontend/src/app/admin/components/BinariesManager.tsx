@@ -71,7 +71,6 @@ export default function BinariesManager() {
         throw new Error('Failed to load binaries');
       }
     } catch (error) {
-      console.error('Error loading binaries:', error);
       toast({
         title: 'Error',
         description: 'Failed to load binaries',
@@ -129,12 +128,11 @@ export default function BinariesManager() {
         throw new Error(errorData.detail || 'Operation failed');
       }
     } catch (error) {
-      console.error('Error saving binary:', error);
       toast({
         title: 'Error',
         description: `Failed to ${
           editingBinary ? 'update' : 'create'
-        } binary: ${error.message}`,
+        } binary: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     }
@@ -174,10 +172,9 @@ export default function BinariesManager() {
         throw new Error(errorData.detail || 'Delete failed');
       }
     } catch (error) {
-      console.error('Error deleting binary:', error);
       toast({
         title: 'Error',
-        description: `Failed to delete binary: ${error.message}`,
+        description: `Failed to delete binary: ${error instanceof Error ? error.message : 'Unknown error'}`,
         variant: 'destructive',
       });
     }

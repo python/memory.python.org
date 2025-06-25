@@ -64,10 +64,3 @@ export function getIconByName(iconName?: string): LucideIcon {
   return icon || Settings; // Fallback to Settings icon
 }
 
-/**
- * Get available icon names
- * @returns Array of available icon names
- */
-export function getAvailableIconNames(): string[] {
-  return Object.keys(iconMap);
-}

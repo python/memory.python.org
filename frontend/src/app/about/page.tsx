@@ -38,7 +38,6 @@ export default function AboutPage() {
         const users = await api.getMaintainers();
         setAdminUsers(users.filter(user => user.is_active));
       } catch (error) {
-        console.error('Failed to fetch maintainers:', error);
         // Fallback to hardcoded admin if API fails
         setAdminUsers([{
           id: 1,

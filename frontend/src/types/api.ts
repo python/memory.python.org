@@ -41,6 +41,42 @@ export interface BatchBenchmarkQuery {
   queries: BenchmarkTrendQuery[];
 }
 
+// Additional API Parameter Types
+export interface BenchmarkNamesQueryParams {
+  environment_id: string;
+  binary_id: string;
+  python_major: number;
+  python_minor: number;
+}
+
+export interface DiffQueryParams {
+  commit_sha: string;
+  binary_id: string;
+  environment_id: string;
+  metric_key: string;
+}
+
+export interface TrendQueryParams {
+  benchmark_name: string;
+  binary_id: string;
+  environment_id: string;
+  python_major: number;
+  python_minor: number;
+  limit?: number;
+}
+
+export interface UploadRequestData {
+  commit_sha: string;
+  binary_id: string;
+  environment_id: string;
+  python_version: {
+    major: number;
+    minor: number;
+    patch: number;
+  };
+  benchmark_results: import('../lib/types').BenchmarkResultJson[];
+}
+
 // Chart Data Types
 export interface ChartDataPoint {
   date: string;
@@ -58,15 +94,32 @@ export interface TrendDataPoint {
   total_allocated_bytes: number;
 }
 
-export interface ComparisonDataPoint {
-  binary: string;
-  points: TrendDataPoint[];
-  geometricMean: number;
+// Binary/Environment API Response Types
+export interface EnvironmentSummary {
+  id: string;
+  name: string;
+  description?: string;
+  run_count: number;
+  commit_count: number;
 }
 
-export interface BenchmarkComparisonData {
-  benchmark: string;
-  data: ComparisonDataPoint[];
+export interface CommitSummary {
+  sha: string;
+  timestamp: string;
+  message: string;
+  author: string;
+  python_version: { major: number; minor: number; patch: number };
+  run_timestamp: string;
+}
+
+// Batch Trends Response Types
+export interface BatchTrendsResponse {
+  results: Record<string, TrendDataPoint[]>;
+}
+
+// Upload Response Types
+export interface UploadResponse {
+  success: boolean;
 }
 
 // Filter Types
@@ -95,19 +148,3 @@ export interface ErrorState {
   [key: string]: string | null;
 }
 
-// Hook Return Types
-export interface UseApiResult<T> {
-  data: T | undefined;
-  error: Error | null;
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => void;
-}
-
-export interface UseBatchResult<T> {
-  data: T[];
-  errors: (Error | null)[];
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => void;
-}
