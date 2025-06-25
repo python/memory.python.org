@@ -325,11 +325,12 @@ async def get_benchmark_result_by_id(
 async def get_python_version_filters(db: AsyncSession) -> List[Dict[str, Any]]:
     result = await db.execute(
         select(
-            models.Commit.python_major,
-            models.Commit.python_minor,
+            models.Run.python_major,
+            models.Run.python_minor,
         )
+        .join(models.BenchmarkResult)
         .distinct()
-        .order_by(desc(models.Commit.python_major), desc(models.Commit.python_minor))
+        .order_by(desc(models.Run.python_major), desc(models.Run.python_minor))
     )
 
     versions = []
