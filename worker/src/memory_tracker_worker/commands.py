@@ -3,7 +3,6 @@ import logging
 import os
 import sys
 import tempfile
-from multiprocessing import cpu_count
 from pathlib import Path
 import git
 
@@ -14,7 +13,7 @@ from .validation import (
     check_build_environment,
     get_commits_to_process
 )
-from .processing import process_commit, process_commits_in_parallel, process_commits_local_checkout
+from .processing import process_commits
 
 logger = logging.getLogger(__name__)
 
@@ -148,33 +147,16 @@ def benchmark_command(args):
         logger.error(f"Pre-flight validation failed: {e}")
         sys.exit(1)
     
+    # Use the provided commit range directly
+    commit_range = args.commit_range
+    
     # Get commits to process
     try:
-        commits = get_commits_to_process(repo, args.commit_range)
+        commits = get_commits_to_process(repo, commit_range)
     except ValueError as e:
         logger.error(f"Failed to get commits: {e}")
         sys.exit(1)
     
-    # Validate local-checkout compatibility
-    if hasattr(args, 'local_checkout') and args.local_checkout and args.max_workers > 1:
-        logger.error("--local-checkout is incompatible with parallel processing (-j > 1)")
-        sys.exit(1)
-    
-    # Validate and set defaults for parallel processing arguments
-    if args.max_workers < 1:
-        logger.error(f"Invalid max-workers value: {args.max_workers}. Must be >= 1")
-        sys.exit(1)
-    
-    if args.batch_size is None:
-        args.batch_size = args.max_workers
-    elif args.batch_size < 1:
-        logger.error(f"Invalid batch-size value: {args.batch_size}. Must be >= 1")
-        sys.exit(1)
-    
-    # Warn if using more workers than available CPUs
-    available_cpus = cpu_count()
-    if args.max_workers > available_cpus:
-        logger.warning(f"Using {args.max_workers} workers on a system with {available_cpus} CPUs. This may reduce performance.")
     
     # Get authentication token from CLI or environment variable
     auth_token = args.auth_token or os.getenv('MEMORY_TRACKER_TOKEN')
@@ -189,71 +171,30 @@ def benchmark_command(args):
     logger.info(f"Output directory: {args.output_dir}")
     logger.info(f"Configure flags: {args.configure_flags}")
     logger.info(f"Make flags: {args.make_flags}")
-    logger.info(f"Max workers: {args.max_workers}")
-    logger.info(f"Batch size: {args.batch_size}")
-    logger.info(f"Local checkout mode: {getattr(args, 'local_checkout', False)}")
     logger.info(f"Number of commits to process: {len(commits)}")
     if len(commits) > 0:
         logger.info("Commits to process:")
         for commit in commits:
             logger.info(f"  {commit.hexsha[:8]} - {commit.message.splitlines()[0]}")
     
-    # Process commits (parallel, sequential, or local checkout mode)
-    if args.max_workers > 1:
-        logger.info(f"Using parallel processing with {args.max_workers} workers and batch size {args.batch_size}")
-        results = process_commits_in_parallel(
-            commits,
-            repo_path,
-            args.output_dir,
-            args.configure_flags,
-            args.make_flags,
-            args.verbose,
-            args.binary_id,
-            args.environment_id,
-            args.force,
-            args.max_workers,
-            args.batch_size,
-            auth_token,
-            args.api_base
-        )
-        errors = [(commit, error) for commit, error in results if error is not None]
-    elif getattr(args, 'local_checkout', False):
-        logger.info("Using local checkout mode")
-        errors = []
-        error = process_commits_local_checkout(
-            commits,
-            repo_path,
-            args.output_dir,
-            args.configure_flags,
-            args.make_flags,
-            args.verbose,
-            args.binary_id,
-            args.environment_id,
-            args.force,
-            auth_token,
-            args.api_base
-        )
-        if error:
-            errors.append((None, error))
-    else:
-        logger.info("Using sequential processing")
-        errors = []
-        for commit in commits:
-            error = process_commit(
-                commit,
-                repo_path,
-                args.output_dir,
-                args.configure_flags,
-                args.make_flags,
-                args.verbose,
-                args.binary_id,
-                args.environment_id,
-                args.force,
-                auth_token,
-                args.api_base
-            )
-            if error:
-                errors.append((commit, error))
+    # Process commits using incremental mode (previously local checkout)
+    logger.info("Processing commits using incremental mode")
+    errors = []
+    error = process_commits(
+        commits,
+        repo_path,
+        args.output_dir,
+        args.configure_flags,
+        args.make_flags,
+        args.verbose,
+        args.binary_id,
+        args.environment_id,
+        args.force,
+        auth_token,
+        args.api_base
+    )
+    if error:
+        errors.append((None, error))
     
     # Print final status
     if errors:

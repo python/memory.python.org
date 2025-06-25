@@ -28,8 +28,14 @@ def check_prerequisites() -> Tuple[bool, str]:
 def validate_commit_range(repo: git.Repo, commit_range: str) -> Tuple[bool, str]:
     """Validate that the given commit range is valid."""
     try:
-        # Try to get the commits from the range
-        commits = list(repo.iter_commits(commit_range))
+        # A range is provided if there is a .. or ... otherwise is a single refspec
+        if '..' not in commit_range and '...' not in commit_range:
+            # Single refspec - validate just that one commit exists
+            commits = list(repo.iter_commits(commit_range, max_count=1))
+        else:
+            # Range - use as-is
+            commits = list(repo.iter_commits(commit_range))
+        
         if not commits:
             return False, f"No commits found in range: {commit_range}"
         return True, ""
@@ -70,7 +76,14 @@ def check_build_environment(repo_path: Path) -> Tuple[bool, str]:
 def get_commits_to_process(repo: git.Repo, commit_range: str) -> list:
     """Get the list of commits to process from the commit range."""
     try:
-        commits = list(repo.iter_commits(commit_range))
+        # A range is provided if there is a .. or ... otherwise is a single refspec
+        if '..' not in commit_range and '...' not in commit_range:
+            # Single refspec - get just that one commit
+            commits = list(repo.iter_commits(commit_range, max_count=1))
+        else:
+            # Range - use as-is
+            commits = list(repo.iter_commits(commit_range))
+        
         if not commits:
             raise ValueError(f"No commits found in range: {commit_range}")
         return commits

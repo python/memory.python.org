@@ -199,6 +199,7 @@ def list_environments(server_url: str = "http://localhost:8000") -> list:
         raise ValueError(f"Failed to fetch environments: {e}")
 
 
+
 def validate_binary_and_environment(binary_id: str, environment_id: str, server_url: str = "http://localhost:8000") -> None:
     """Validate that binary and environment exist on the server before running benchmarks."""
     logger.info(f"Validating binary_id: {binary_id} and environment_id: {environment_id}")

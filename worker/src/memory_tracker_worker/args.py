@@ -60,14 +60,13 @@ def parse_args():
         help='Run memory benchmarks on CPython commits'
     )
     benchmark_parser.add_argument(
-        'repo_path',
-        nargs='?',
-        type=Path,
-        help='Path to CPython repository (optional, will clone if not provided)'
+        'commit_range',
+        help='Git commit range to benchmark (e.g., HEAD~5..HEAD, HEAD^, commit_sha)'
     )
     benchmark_parser.add_argument(
-        'commit_range',
-        help='Git commit range to benchmark (e.g., HEAD~5..HEAD)'
+        '--repo-path', '-r',
+        type=Path,
+        help='Path to CPython repository. If not provided, will clone CPython to a temporary directory.'
     )
     benchmark_parser.add_argument(
         '--output-dir', '-o',
@@ -107,18 +106,6 @@ def parse_args():
         help='Force overwrite existing output directories for commits'
     )
     benchmark_parser.add_argument(
-        '--max-workers', '-j',
-        type=int,
-        default=1,
-        help='Maximum number of parallel workers. Creates temporary repo copies for each worker to avoid conflicts. (default: 1 for sequential processing)'
-    )
-    benchmark_parser.add_argument(
-        '--batch-size', '-b',
-        type=int,
-        default=None,
-        help='Number of commits to process in each parallel batch. Useful for memory management with large commit ranges. (default: same as max-workers)'
-    )
-    benchmark_parser.add_argument(
         '--auth-token',
         help='Authentication token for uploading results to server. Can also be set via MEMORY_TRACKER_TOKEN environment variable.'
     )
@@ -126,11 +113,6 @@ def parse_args():
         '--api-base',
         default='http://localhost:8000',
         help='Base URL for the memory tracker API (default: http://localhost:8000)'
-    )
-    benchmark_parser.add_argument(
-        '--local-checkout',
-        action='store_true',
-        help='Use local checkout for building. Runs git clean -fxd, configures once, and runs make for each commit. Incompatible with parallel processing (-j > 1).'
     )
     benchmark_parser.set_defaults(func=benchmark_command)
     
