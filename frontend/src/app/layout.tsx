@@ -36,6 +36,11 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&display=swap"
           rel="stylesheet"
         />
+        <script
+          defer
+          data-domain="memory.python.org"
+          src="https://analytics.python.org/js/script.file-downloads.hash.outbound-links.js"
+        ></script>
       </head>
       <body className="font-body antialiased min-h-screen flex flex-col">
         <QueryProvider>
