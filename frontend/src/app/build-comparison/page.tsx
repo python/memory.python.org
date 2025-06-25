@@ -82,6 +82,7 @@ export default function BuildComparisonPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataProcessing, setDataProcessing] = useState(false);
+  const [benchmarkNamesLoading, setBenchmarkNamesLoading] = useState(false);
 
   // Store trend data for each binary-benchmark combination
   const [trendData, setTrendData] = useState<
@@ -177,10 +178,8 @@ export default function BuildComparisonPage() {
     async function loadBenchmarkData() {
       if (
         !selectedEnvironmentId ||
-        !selectedPythonVersionKey ||
-        selectedBinaries.length === 0
+        !selectedPythonVersionKey
       ) {
-        setDataProcessing(false);
         return;
       }
 
@@ -193,12 +192,17 @@ export default function BuildComparisonPage() {
       }
 
       try {
-        setDataProcessing(true);
+        setBenchmarkNamesLoading(true);
 
-        // Get available benchmark names for the first binary
+        // Get available benchmark names for the first available binary (benchmark names are the same across binaries)
+        const firstBinaryId = binaries.length > 0 ? binaries[0].id : undefined;
+        if (!firstBinaryId) {
+          return;
+        }
+        
         const uniqueBenchmarks = await api.getBenchmarkNames({
           environment_id: selectedEnvironmentId,
-          binary_id: selectedBinaries[0],
+          binary_id: firstBinaryId,
           python_major: versionOption.major,
           python_minor: versionOption.minor,
         } satisfies BenchmarkNamesQueryParams);
@@ -217,7 +221,7 @@ export default function BuildComparisonPage() {
           variant: 'destructive',
         });
       } finally {
-        setDataProcessing(false);
+        setBenchmarkNamesLoading(false);
       }
     }
 
@@ -227,10 +231,10 @@ export default function BuildComparisonPage() {
   }, [
     selectedEnvironmentId,
     selectedPythonVersionKey,
-    selectedBinaries,
     pythonVersionOptions,
     loading,
     mounted,
+    binaries,
   ]);
 
   // Load ALL benchmark data upfront for selected binaries and environment
@@ -1067,12 +1071,7 @@ export default function BuildComparisonPage() {
                   }
                 />
                 <ScrollArea className="h-48 rounded-md border p-4">
-                  {loading ||
-                  dataProcessing ||
-                  (allBenchmarkNames.length === 0 &&
-                    selectedEnvironmentId &&
-                    selectedPythonVersionKey &&
-                    selectedBinaries.length > 0) ? (
+                  {benchmarkNamesLoading ? (
                     <div className="space-y-2">
                       {[...Array(8)].map((_, i) => (
                         <div key={i} className="flex items-center space-x-2">

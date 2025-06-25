@@ -82,6 +82,7 @@ export default function BenchmarkTrendPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dataProcessing, setDataProcessing] = useState(false);
+  const [benchmarkNamesLoading, setBenchmarkNamesLoading] = useState(false);
 
   const [selectedBinaryId, setSelectedBinaryId] = useState<
     string | undefined
@@ -232,7 +233,7 @@ export default function BenchmarkTrendPage() {
       }
 
       try {
-        setDataProcessing(true);
+        setBenchmarkNamesLoading(true);
         const uniqueBenchmarks = await api.getBenchmarkNames({
           environment_id: selectedEnvironmentId,
           binary_id: selectedBinaryId,
@@ -254,11 +255,11 @@ export default function BenchmarkTrendPage() {
           variant: 'destructive',
         });
       } finally {
-        setDataProcessing(false);
+        setBenchmarkNamesLoading(false);
       }
     }
 
-    if (!loading && mounted && availableEnvironments.length > 0) {
+    if (!loading && mounted) {
       loadBenchmarkData();
     }
   }, [
@@ -268,7 +269,6 @@ export default function BenchmarkTrendPage() {
     pythonVersionOptions,
     loading,
     mounted,
-    availableEnvironments,
   ]);
 
   // Load trend data when benchmarks are selected
@@ -826,7 +826,7 @@ export default function BenchmarkTrendPage() {
               disabled={loading || allBenchmarkNames.length === 0}
             />
             <ScrollArea className="h-40 rounded-md border p-2">
-              {loading || dataProcessing ? (
+              {benchmarkNamesLoading ? (
                 <div className="space-y-2">
                   {[...Array(6)].map((_, i) => (
                     <div key={i} className="flex items-center space-x-2">
