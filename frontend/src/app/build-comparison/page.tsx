@@ -274,7 +274,9 @@ export default function BuildComparisonPage() {
         const newTrendData: Record<string, Record<string, TrendDataPoint[]>> = {};
 
         for (const [key, trends] of Object.entries(batchResponse.results)) {
-          const [binaryId, benchmarkName] = key.split(':');
+          // Extract binary ID and benchmark name from key: format is "binaryId:benchmarkName|pythonVersion"
+          let benchmarkPart = key.split('|')[0]; // Remove python version part
+          const [binaryId, benchmarkName] = benchmarkPart.split(':'); // Extract binary ID and benchmark name
           if (!newTrendData[binaryId]) {
             newTrendData[binaryId] = {};
           }

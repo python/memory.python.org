@@ -197,7 +197,7 @@ async def get_batch_benchmark_trends(
     results = {}
 
     for trend_query in request.trend_queries:
-        key = f"{trend_query.binary_id}:{trend_query.benchmark_name}"
+        key = f"{trend_query.binary_id}:{trend_query.benchmark_name}|{trend_query.python_major}.{trend_query.python_minor}"
         trends = await crud.get_benchmark_trends(
             db,
             benchmark_name=trend_query.benchmark_name,
