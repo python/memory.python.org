@@ -23,6 +23,14 @@ on:
         description: 'CPython repository URL'
         required: false
         default: 'https://github.com/python/cpython.git'
+      configure_flags:
+        description: 'Configure flags for CPython build'
+        required: false
+        default: '-C'
+      make_flags:
+        description: 'Make flags for CPython build'
+        required: false
+        default: '-j'
 
 jobs:
   benchmark:
@@ -41,7 +49,7 @@ jobs:
       run: |
         git clone ${{ github.event.inputs.cpython_repo }} cpython
         cd cpython
-        git fetch --depth=50
+        git fetch --depth=200
         
     - name: Install memory tracker worker
       run: |
@@ -65,17 +73,25 @@ jobs:
       env:
         MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
       run: |
-        # Build command with preconfigured options
-        CMD="memory-tracker benchmark ./cpython ${{ github.event.inputs.commit_range }}"
-        CMD="$CMD --binary-id ${{ github.event.inputs.binary_id }}"
-        CMD="$CMD --environment-id ${{ github.event.inputs.environment_id }}"
-        CMD="$CMD --api-base ${{ github.event.inputs.server_url }}"
-        CMD="$CMD --configure-flags='-C'"
-        CMD="$CMD --make-flags='-j4'"
-        CMD="$CMD --output-dir='./benchmark_results'"
+        # Build command with conditional flags
+        CMD="memory-tracker benchmark '${{ github.event.inputs.commit_range }}'"
+        CMD="$CMD --repo-path ./cpython"
+        CMD="$CMD --binary-id '${{ github.event.inputs.binary_id }}'"
+        CMD="$CMD --environment-id '${{ github.event.inputs.environment_id }}'"
+        CMD="$CMD --api-base '${{ github.event.inputs.server_url }}'"
+        CMD="$CMD --output-dir ./benchmark_results"
         CMD="$CMD --force"
-        CMD="$CMD --local-checkout"
         CMD="$CMD -vv"
+        
+        # Add configure flags if provided
+        if [ -n "${{ github.event.inputs.configure_flags }}" ]; then
+          CMD="$CMD --configure-flags='${{ github.event.inputs.configure_flags }}'"
+        fi
+        
+        # Add make flags if provided
+        if [ -n "${{ github.event.inputs.make_flags }}" ]; then
+          CMD="$CMD --make-flags='${{ github.event.inputs.make_flags }}'"
+        fi
         
         echo "Running: $CMD"
         eval $CMD
