@@ -122,6 +122,7 @@ async def get_diff_table(
             "metric_key": metric_key,
             "curr_python_version_str": f"{selected_commit.python_major}.{selected_commit.python_minor}.{selected_commit.python_patch}",
             "curr_result_id": result.id,
+            "has_flamegraph": result.flamegraph_html is not None,
         }
 
         # Try to find previous commit's data for comparison

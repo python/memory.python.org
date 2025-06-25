@@ -98,11 +98,16 @@ function EnvironmentCard({
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary">
-              {environment.commit_count} commits
-            </Badge>
-            <Badge variant="outline">{environment.run_count} runs</Badge>
+          <div className="flex flex-col items-end gap-2">
+            <div className="text-xs text-muted-foreground font-mono">
+              Identifier: {environment.id}
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary">
+                {environment.commit_count} commits
+              </Badge>
+              <Badge variant="outline">{environment.run_count} runs</Badge>
+            </div>
           </div>
         </div>
       </CardHeader>

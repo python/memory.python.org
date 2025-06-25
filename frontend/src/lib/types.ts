@@ -67,6 +67,7 @@ export type DiffTableRow = {
   prev_python_version_str?: string;
   curr_python_version_str: string;
   curr_result_id: string;
+  has_flamegraph?: boolean;
 };
 
 export type AuthToken = {

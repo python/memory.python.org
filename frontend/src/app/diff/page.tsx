@@ -74,6 +74,7 @@ interface EnhancedDiffTableRow {
 
   // Result ID for flamegraph
   curr_result_id?: string;
+  has_flamegraph?: boolean;
 }
 import CommitTooltipContent from '@/components/diff/CommitTooltipContent';
 
@@ -348,6 +349,7 @@ function DiffTableContent() {
               curr_python_version_str: baseRow.curr_python_version_str,
               prev_python_version_str: baseRow.prev_python_version_str,
               curr_result_id: baseRow.curr_result_id,
+              has_flamegraph: baseRow.has_flamegraph,
 
               // High watermark data
               high_watermark_curr: hwRow?.curr_metric_value || 0,
@@ -1177,7 +1179,7 @@ function DiffTableContent() {
                           {row.total_allocated_curr.toLocaleString()}
                         </TableCell>
                         <TableCell className="text-center">
-                          {row.curr_result_id ? (
+                          {row.curr_result_id && row.has_flamegraph ? (
                             <Button
                               variant="outline"
                               size="sm"

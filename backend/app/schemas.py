@@ -140,6 +140,7 @@ class DiffTableRow(BaseModel):
     prev_python_version_str: Optional[str] = None
     curr_python_version_str: str
     curr_result_id: str
+    has_flamegraph: bool = False
 
 
 class PythonVersionFilterOption(BaseModel):

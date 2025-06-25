@@ -42,7 +42,7 @@ services:
     image: node:20-alpine
     working_dir: /app
     environment:
-      NEXT_PUBLIC_API_BASE: http://localhost:8000
+      NEXT_PUBLIC_API_BASE: http://localhost:8000/api
     ports:
       - "9002:9002"
     depends_on:
