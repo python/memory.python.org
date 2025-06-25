@@ -108,6 +108,7 @@ def create_app(settings=None) -> FastAPI:
                     "path": str(request.url.path),
                     "status_code": status_code,
                     "duration_ms": duration_ms,
+                    "user_agent": request.headers.get("user-agent"),
                     "error": error,
                 },
             )
