@@ -185,7 +185,11 @@ async def get_runs(
     skip: int = 0,
     limit: int = 100,
 ) -> List[models.Run]:
-    query = select(models.Run).order_by(desc(models.Run.timestamp))
+    query = (
+        select(models.Run)
+        .join(models.BenchmarkResult)
+        .order_by(desc(models.Run.timestamp))
+    )
 
     if commit_sha:
         query = query.where(models.Run.commit_sha == commit_sha)
