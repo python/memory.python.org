@@ -153,6 +153,8 @@ class TrendRequest(BaseModel):
     benchmark_name: str
     binary_id: str
     environment_id: str
+    python_major: int
+    python_minor: int
     limit: int = 50
 
 

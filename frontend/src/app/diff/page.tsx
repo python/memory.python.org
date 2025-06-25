@@ -54,6 +54,7 @@ import type {
 import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import { useSearchParams } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface EnhancedDiffTableRow {
   benchmark_name: string;
@@ -98,6 +99,7 @@ function DiffTableContent() {
   const [loading, setLoading] = useState(true);
   const [dataProcessing, setDataProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
   const [selectedPythonVersion, setSelectedPythonVersion] = useState<
     string | undefined
   >();
@@ -194,7 +196,13 @@ function DiffTableContent() {
           setSelectedEnvironmentId(environmentsData[0].id);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -237,6 +245,11 @@ function DiffTableContent() {
       } catch (err) {
         console.error('Failed to load environments for binary:', err);
         setAvailableEnvironments([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load environments for selected binary',
+          variant: 'destructive',
+        });
       }
     }
 
@@ -286,6 +299,11 @@ function DiffTableContent() {
           'Failed to load commits for binary and environment:',
           err
         );
+        toast({
+          title: 'Error',
+          description: 'Failed to load commits for binary and environment',
+          variant: 'destructive',
+        });
         setAvailableCommits([]);
       }
     }
@@ -368,6 +386,11 @@ function DiffTableContent() {
       } catch (err) {
         console.error('Error loading diff data:', err);
         setDiffData([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load diff data',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }

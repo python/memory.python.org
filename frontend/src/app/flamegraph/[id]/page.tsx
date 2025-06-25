@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface FlamegraphPageProps {
   params: Promise<{ id: string }>;
@@ -17,6 +18,7 @@ export default function FlamegraphPage({ params }: FlamegraphPageProps) {
   const [flamegraphHtml, setFlamegraphHtml] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
+  const { toast } = useToast();
 
   useEffect(() => {
     const fetchFlamegraph = async () => {
@@ -26,9 +28,13 @@ export default function FlamegraphPage({ params }: FlamegraphPageProps) {
         setFlamegraphHtml(data.flamegraph_html || '');
       } catch (err) {
         console.error('Error fetching flamegraph:', err);
-        setError(
-          err instanceof Error ? err.message : 'Failed to load flamegraph'
-        );
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load flamegraph';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }

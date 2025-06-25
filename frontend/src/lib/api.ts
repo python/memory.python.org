@@ -193,12 +193,16 @@ export const api = {
     benchmark_name: string;
     binary_id: string;
     environment_id: string;
+    python_major: number;
+    python_minor: number;
     limit?: number;
   }) => {
     const queryParams = new URLSearchParams();
     queryParams.append('benchmark_name', params.benchmark_name);
     queryParams.append('binary_id', params.binary_id);
     queryParams.append('environment_id', params.environment_id);
+    queryParams.append('python_major', params.python_major.toString());
+    queryParams.append('python_minor', params.python_minor.toString());
     if (params.limit) queryParams.append('limit', params.limit.toString());
 
     return fetchApi<
@@ -218,6 +222,8 @@ export const api = {
       benchmark_name: string;
       binary_id: string;
       environment_id: string;
+      python_major: number;
+      python_minor: number;
       limit?: number;
     }>
   ) => {
@@ -239,6 +245,8 @@ export const api = {
           benchmark_name: query.benchmark_name,
           binary_id: query.binary_id,
           environment_id: query.environment_id,
+          python_major: query.python_major,
+          python_minor: query.python_minor,
           limit: query.limit || 50,
         })),
       }),

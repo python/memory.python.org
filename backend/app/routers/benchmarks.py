@@ -163,6 +163,8 @@ async def get_benchmark_trends(
     benchmark_name: str,
     binary_id: str,
     environment_id: str,
+    python_major: int,
+    python_minor: int,
     limit: int = 50,
     db: AsyncSession = Depends(get_database),
 ):
@@ -175,6 +177,8 @@ async def get_benchmark_trends(
         benchmark_name=benchmark_name,
         binary_id=binary_id,
         environment_id=environment_id,
+        python_major=python_major,
+        python_minor=python_minor,
         limit=limit,
     )
     return trends
@@ -199,6 +203,8 @@ async def get_batch_benchmark_trends(
             benchmark_name=trend_query.benchmark_name,
             binary_id=trend_query.binary_id,
             environment_id=trend_query.environment_id,
+            python_major=trend_query.python_major,
+            python_minor=trend_query.python_minor,
             limit=trend_query.limit,
         )
         results[key] = trends

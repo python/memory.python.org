@@ -19,6 +19,8 @@ async def get_benchmark_trends(
     benchmark_name: str,
     binary_id: str,
     environment_id: str,
+    python_major: int,
+    python_minor: int,
     limit: int = 50,
 ) -> List[Dict[str, Any]]:
     """
@@ -40,6 +42,8 @@ async def get_benchmark_trends(
         WHERE r.binary_id = :binary_id
           AND r.environment_id = :environment_id
           AND br.benchmark_name = :benchmark_name
+          AND c.python_major = :python_major
+          AND c.python_minor = :python_minor
         ORDER BY c.timestamp DESC
         LIMIT :limit
     """)
@@ -50,6 +54,8 @@ async def get_benchmark_trends(
             "benchmark_name": benchmark_name,
             "binary_id": binary_id,
             "environment_id": environment_id,
+            "python_major": python_major,
+            "python_minor": python_minor,
             "limit": limit,
         },
     )

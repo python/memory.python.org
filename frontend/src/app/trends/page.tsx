@@ -51,6 +51,7 @@ import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/hooks/use-toast';
 
 const formatBytes = (bytes: number, decimals = 2) => {
   if (!bytes && bytes !== 0) return 'N/A';
@@ -96,6 +97,7 @@ export default function BenchmarkTrendPage() {
   );
 
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
   const [trendData, setTrendData] = useState<
     Record<
       string,
@@ -152,7 +154,13 @@ export default function BenchmarkTrendPage() {
           setSelectedPythonVersionKey(pythonVersionsData[0].label);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -195,6 +203,11 @@ export default function BenchmarkTrendPage() {
       } catch (err) {
         console.error('Failed to load environments for binary:', err);
         setAvailableEnvironments([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load environments for selected binary',
+          variant: 'destructive',
+        });
       }
     }
 
@@ -238,6 +251,11 @@ export default function BenchmarkTrendPage() {
         }
       } catch (err) {
         console.error('Failed to load benchmark data:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to load benchmark names',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }
@@ -262,8 +280,16 @@ export default function BenchmarkTrendPage() {
       if (
         !selectedBinaryId ||
         !selectedEnvironmentId ||
+        !selectedPythonVersionKey ||
         selectedBenchmarks.length === 0
       ) {
+        return;
+      }
+
+      const versionOption = pythonVersionOptions.find(
+        (v) => v.label === selectedPythonVersionKey
+      );
+      if (!versionOption) {
         return;
       }
 
@@ -274,6 +300,8 @@ export default function BenchmarkTrendPage() {
           benchmark_name: benchmark,
           binary_id: selectedBinaryId,
           environment_id: selectedEnvironmentId,
+          python_major: versionOption.major,
+          python_minor: versionOption.minor,
           limit: debouncedMaxDataPoints,
         }));
 
@@ -297,6 +325,11 @@ export default function BenchmarkTrendPage() {
           'Failed to load trend data for selected benchmarks:',
           err
         );
+        toast({
+          title: 'Error',
+          description: 'Failed to load trend data for selected benchmarks',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }
@@ -307,6 +340,8 @@ export default function BenchmarkTrendPage() {
     selectedBenchmarks,
     selectedBinaryId,
     selectedEnvironmentId,
+    selectedPythonVersionKey,
+    pythonVersionOptions,
     debouncedMaxDataPoints,
   ]);
 
@@ -479,7 +514,11 @@ export default function BenchmarkTrendPage() {
       })
       .catch((error) => {
         console.error('Failed to export chart as PNG:', error);
-        alert('PNG export failed. Please try again.');
+        toast({
+          title: 'Export Error',
+          description: 'PNG export failed. Please try again.',
+          variant: 'destructive',
+        });
       });
   };
 

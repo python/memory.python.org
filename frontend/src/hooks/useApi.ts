@@ -18,6 +18,8 @@ export const queryKeys = {
     benchmark_name: string;
     binary_id: string;
     environment_id: string;
+    python_major: number;
+    python_minor: number;
     limit: number;
   }) => ['benchmarkTrends', params] as const,
   batchBenchmarkTrends: (
@@ -25,6 +27,8 @@ export const queryKeys = {
       benchmark_name: string;
       binary_id: string;
       environment_id: string;
+      python_major: number;
+      python_minor: number;
       limit: number;
     }>
   ) => ['batchBenchmarkTrends', queries] as const,
@@ -83,12 +87,19 @@ export function useCommitsForBinaryEnvironment(
 
 export function useBenchmarkNames(
   binaryId: string | null,
-  environmentId: string | null
+  environmentId: string | null,
+  pythonMajor: number | null,
+  pythonMinor: number | null
 ) {
   return useQuery({
     queryKey: queryKeys.benchmarkNames(binaryId || '', environmentId || ''),
-    queryFn: () => api.getBenchmarkNames(binaryId!, environmentId!),
-    enabled: !!binaryId && !!environmentId,
+    queryFn: () => api.getBenchmarkNames({
+      binary_id: binaryId!,
+      environment_id: environmentId!,
+      python_major: pythonMajor!,
+      python_minor: pythonMinor!,
+    }),
+    enabled: !!binaryId && !!environmentId && pythonMajor !== null && pythonMinor !== null,
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -99,6 +110,8 @@ export function useBenchmarkTrends(
     benchmark_name: string;
     binary_id: string;
     environment_id: string;
+    python_major: number;
+    python_minor: number;
     limit: number;
   } | null
 ) {
@@ -118,6 +131,8 @@ export function useBatchBenchmarkTrends(
     benchmark_name: string;
     binary_id: string;
     environment_id: string;
+    python_major: number;
+    python_minor: number;
     limit: number;
   }>
 ) {
@@ -127,7 +142,8 @@ export function useBatchBenchmarkTrends(
       queryFn: () => api.getBenchmarkTrends(query),
       staleTime: 1 * 60 * 1000,
       enabled:
-        !!query.benchmark_name && !!query.binary_id && !!query.environment_id,
+        !!query.benchmark_name && !!query.binary_id && !!query.environment_id && 
+        query.python_major !== undefined && query.python_minor !== undefined,
     })),
   });
 }
@@ -138,6 +154,8 @@ export function useBatchBenchmarkTrendsOptimized(
     benchmark_name: string;
     binary_id: string;
     environment_id: string;
+    python_major: number;
+    python_minor: number;
     limit: number;
   }>,
   enabled: boolean = true

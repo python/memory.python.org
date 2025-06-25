@@ -54,6 +54,7 @@ import { api } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
+import { useToast } from '@/hooks/use-toast';
 
 const formatBytes = (bytes: number, decimals = 2) => {
   if (!bytes && bytes !== 0) return 'N/A';
@@ -115,6 +116,7 @@ export default function BuildComparisonPage() {
   );
 
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
   useEffect(() => setMounted(true), []);
 
   // Debounce maxDataPoints changes
@@ -159,7 +161,13 @@ export default function BuildComparisonPage() {
           setSelectedBinaries([binariesData[0].id, binariesData[1].id]);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -209,6 +217,11 @@ export default function BuildComparisonPage() {
         }
       } catch (err) {
         console.error('Failed to load benchmark data:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to load benchmark names',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }
@@ -240,12 +253,22 @@ export default function BuildComparisonPage() {
 
       setDataProcessing(true);
       try {
+        const versionOption = pythonVersionOptions.find(
+          (v) => v.label === selectedPythonVersionKey
+        );
+        if (!versionOption) {
+          setDataProcessing(false);
+          return;
+        }
+
         // Create batch request for ALL benchmarks and selected binaries (load everything upfront)
         const trendQueries = allBenchmarkNames.flatMap((benchmark) =>
           selectedBinaries.map((binaryId) => ({
             benchmark_name: benchmark,
             binary_id: binaryId,
             environment_id: selectedEnvironmentId,
+            python_major: versionOption.major,
+            python_minor: versionOption.minor,
             limit: debouncedMaxDataPoints,
           }))
         );
@@ -267,6 +290,11 @@ export default function BuildComparisonPage() {
         setTrendData(newTrendData); // Replace entirely since we're loading all data
       } catch (err) {
         console.error('Failed to load trend data:', err);
+        toast({
+          title: 'Error',
+          description: 'Failed to load trend data',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }
@@ -276,6 +304,8 @@ export default function BuildComparisonPage() {
   }, [
     selectedBinaries,
     selectedEnvironmentId,
+    selectedPythonVersionKey,
+    pythonVersionOptions,
     allBenchmarkNames,
     debouncedMaxDataPoints,
   ]); // Remove selectedBenchmarks and benchmarkMode from dependencies
@@ -758,7 +788,11 @@ export default function BuildComparisonPage() {
       })
       .catch((error) => {
         console.error('Failed to export chart as PNG:', error);
-        alert('PNG export failed. Please try again.');
+        toast({
+          title: 'Export Error',
+          description: 'PNG export failed. Please try again.',
+          variant: 'destructive',
+        });
       });
   };
 
@@ -1284,23 +1318,30 @@ export default function BuildComparisonPage() {
                   formatter={(value: number, name: string, props) => {
                     const binary = binaries.find((b) => b.id === name);
                     const displayName = binary?.name || name;
+                    const fullVersion = props.payload.fullVersion
+                      ? `(py ${props.payload.fullVersion})`
+                      : '';
 
                     if (viewMode === 'relative') {
-                      return [`${value.toFixed(2)}%`, displayName];
+                      return [`${value.toFixed(2)}% ${fullVersion}`, displayName];
                     } else {
-                      return [formatBytes(value), displayName];
+                      return [`${formatBytes(value)} ${fullVersion}`, displayName];
                     }
                   }}
                   labelFormatter={(label, payload) => {
                     const commitData = payload?.[0]?.payload;
-                    if (commitData) {
-                      const message = commitData.commitMessage || 'No message';
-                      return `${commitData.commitSha}: ${message.substring(
-                        0,
-                        50
-                      )}${message.length > 50 ? '...' : ''}`;
+                    if (commitData && commitData.commitSha && commitData.fullVersion) {
+                      const message = commitData.commitMessage;
+                      if (message && message.trim()) {
+                        const truncatedMessage = message.length > 50
+                          ? `${message.substring(0, 50)}...`
+                          : message;
+                        return `${commitData.commitSha} (py ${commitData.fullVersion}): ${truncatedMessage}`;
+                      } else {
+                        return `${commitData.commitSha} (py ${commitData.fullVersion})`;
+                      }
                     }
-                    return label;
+                    return label || 'No data';
                   }}
                   contentStyle={{
                     backgroundColor: 'hsl(var(--background))',

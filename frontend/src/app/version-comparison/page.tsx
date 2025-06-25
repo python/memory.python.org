@@ -46,6 +46,7 @@ import {
 import { useRouter } from 'next/navigation';
 import type { Commit, Binary, Environment } from '@/lib/types';
 import { api } from '@/lib/api';
+import { useToast } from '@/hooks/use-toast';
 
 interface VersionComparisonRow {
   benchmark_name: string;
@@ -98,6 +99,7 @@ function VersionComparisonContent() {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
 
   const [mounted, setMounted] = useState(false);
+  const { toast } = useToast();
   useEffect(() => setMounted(true), []);
 
   // Toggle version selection
@@ -155,7 +157,13 @@ function VersionComparisonContent() {
           setSelectedBinaryId(binariesData[0].id);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -190,6 +198,11 @@ function VersionComparisonContent() {
       } catch (err) {
         console.error('Failed to load environments for binary:', err);
         setAvailableEnvironments([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load environments for selected binary',
+          variant: 'destructive',
+        });
       }
     }
 
@@ -260,6 +273,11 @@ function VersionComparisonContent() {
           err
         );
         setAvailablePythonVersions([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load commits for binary and environment',
+          variant: 'destructive',
+        });
         setLatestCommitPerVersion(new Map());
       }
     }
@@ -307,6 +325,8 @@ function VersionComparisonContent() {
             benchmark_name: benchmarkName,
             binary_id: selectedBinaryId,
             environment_id: selectedEnvironmentId,
+            python_major: commit.python_version.major,
+            python_minor: commit.python_version.minor,
             limit: 50, // Get recent trends to find the exact commit
           }))
         );
@@ -358,6 +378,11 @@ function VersionComparisonContent() {
       } catch (err) {
         console.error('Error loading comparison data:', err);
         setComparisonData([]);
+        toast({
+          title: 'Error',
+          description: 'Failed to load comparison data',
+          variant: 'destructive',
+        });
       } finally {
         setDataProcessing(false);
       }

@@ -39,6 +39,7 @@ import { api } from '@/lib/api';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 type EnvironmentData = {
   id: string;
@@ -241,6 +242,7 @@ export default function BinaryDetailPage({
     {}
   );
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadBinaryAndEnvironments() {
@@ -263,9 +265,13 @@ export default function BinaryDetailPage({
         setBinary(binaryData);
         setEnvironments(environmentsData);
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : 'Failed to load binary details'
-        );
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load binary details';
+        setError(errorMessage);
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
@@ -287,6 +293,11 @@ export default function BinaryDetailPage({
       setCommitsData((prev) => ({ ...prev, [key]: commits }));
     } catch (err) {
       console.error('Failed to load commits:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load commits for environment',
+        variant: 'destructive',
+      });
     } finally {
       setLoadingCommits((prev) => ({ ...prev, [key]: false }));
     }
