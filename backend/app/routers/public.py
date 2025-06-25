@@ -29,5 +29,5 @@ async def get_maintainers(
         .order_by(AdminUser.added_at)
     )
     admin_users = result.scalars().all()
-    
+
     return admin_users

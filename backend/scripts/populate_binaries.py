@@ -143,12 +143,16 @@ async def populate_binaries(force: bool = False, database_url: str = None):
                         existing_binary.description = binary_data["description"]
                         existing_binary.color = binary_data.get("color", "#8b5cf6")
                         existing_binary.icon = binary_data.get("icon", "server")
-                        existing_binary.display_order = binary_data.get("display_order", 0)
+                        existing_binary.display_order = binary_data.get(
+                            "display_order", 0
+                        )
                         await db.commit()
                         print(f"✅ Updated binary '{binary_id}': {binary_data['name']}")
                         print(f"   Flags: {binary_data['flags']}")
                         print(f"   Description: {binary_data['description']}")
-                        print(f"   Color: {binary_data.get('color', '#8b5cf6')}, Icon: {binary_data.get('icon', 'server')}")
+                        print(
+                            f"   Color: {binary_data.get('color', '#8b5cf6')}, Icon: {binary_data.get('icon', 'server')}"
+                        )
                         updated_count += 1
                     else:
                         print(

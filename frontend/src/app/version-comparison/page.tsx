@@ -163,7 +163,8 @@ function VersionComparisonContent() {
           setSelectedBinaryId(binariesData[0].id);
         }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load data';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load data';
         setError(errorMessage);
         toast({
           title: 'Error',
@@ -327,59 +328,64 @@ function VersionComparisonContent() {
         const benchmarkNames = await api.getBenchmarkNames(benchmarkNamesQuery);
 
         // Create trend queries for each benchmark and each selected version
-        const allTrendQueries: TrendQueryParams[] = benchmarkNames.flatMap((benchmarkName) =>
-          selectedCommits.map((commit) => ({
-            benchmark_name: benchmarkName,
-            binary_id: selectedBinaryId,
-            environment_id: selectedEnvironmentId,
-            python_major: commit.python_version.major,
-            python_minor: commit.python_version.minor,
-            limit: 50, // Get recent trends to find the exact commit
-          }))
+        const allTrendQueries: TrendQueryParams[] = benchmarkNames.flatMap(
+          (benchmarkName) =>
+            selectedCommits.map((commit) => ({
+              benchmark_name: benchmarkName,
+              binary_id: selectedBinaryId,
+              environment_id: selectedEnvironmentId,
+              python_major: commit.python_version.major,
+              python_minor: commit.python_version.minor,
+              limit: 50, // Get recent trends to find the exact commit
+            }))
         );
 
         // Get trend data for all benchmark/commit combinations
-        const batchResults: BatchTrendsResponse = await api.getBatchBenchmarkTrends(allTrendQueries);
+        const batchResults: BatchTrendsResponse = await api.getBatchBenchmarkTrends(
+          allTrendQueries
+        );
 
         // Process the results into comparison matrix
         const matrixMap = new Map<string, ComparisonMatrix>();
 
-        Object.entries(batchResults.results).forEach(([queryKey, trends]: [string, TrendDataPoint[]]) => {
-          if (trends.length === 0) return;
+        Object.entries(batchResults.results).forEach(
+          ([queryKey, trends]: [string, TrendDataPoint[]]) => {
+            if (trends.length === 0) return;
 
-          // Extract benchmark name from query key and remove any binary prefix
-          let benchmarkName = queryKey.split('|')[0];
-          // Check if the benchmark name has a binary prefix (pattern: binaryId:benchmarkName)
-          if (benchmarkName.includes(':')) {
-            benchmarkName = benchmarkName.split(':')[1]; // Take the part after the colon
-          }
-
-          // Find the trend data for each selected commit
-          selectedCommits.forEach((commit) => {
-            const commitTrend: TrendDataPoint | undefined = trends.find(
-              (trend) => trend.sha === commit.sha
-            );
-            if (!commitTrend) return;
-
-            const version = `${commit.python_version.major}.${commit.python_version.minor}`;
-
-            if (!matrixMap.has(benchmarkName)) {
-              matrixMap.set(benchmarkName, {
-                benchmark_name: benchmarkName,
-                versions: new Map(),
-              });
+            // Extract benchmark name from query key and remove any binary prefix
+            let benchmarkName = queryKey.split('|')[0];
+            // Check if the benchmark name has a binary prefix (pattern: binaryId:benchmarkName)
+            if (benchmarkName.includes(':')) {
+              benchmarkName = benchmarkName.split(':')[1]; // Take the part after the colon
             }
 
-            const matrix = matrixMap.get(benchmarkName)!;
-            matrix.versions.set(version, {
-              benchmark_name: benchmarkName,
-              commit_details: commit,
-              python_version_str: commitTrend.python_version,
-              high_watermark_bytes: commitTrend.high_watermark_bytes,
-              total_allocated_bytes: commitTrend.total_allocated_bytes,
+            // Find the trend data for each selected commit
+            selectedCommits.forEach((commit) => {
+              const commitTrend: TrendDataPoint | undefined = trends.find(
+                (trend) => trend.sha === commit.sha
+              );
+              if (!commitTrend) return;
+
+              const version = `${commit.python_version.major}.${commit.python_version.minor}`;
+
+              if (!matrixMap.has(benchmarkName)) {
+                matrixMap.set(benchmarkName, {
+                  benchmark_name: benchmarkName,
+                  versions: new Map(),
+                });
+              }
+
+              const matrix = matrixMap.get(benchmarkName)!;
+              matrix.versions.set(version, {
+                benchmark_name: benchmarkName,
+                commit_details: commit,
+                python_version_str: commitTrend.python_version,
+                high_watermark_bytes: commitTrend.high_watermark_bytes,
+                total_allocated_bytes: commitTrend.total_allocated_bytes,
+              });
             });
-          });
-        });
+          }
+        );
 
         setComparisonData(Array.from(matrixMap.values()));
       } catch (err) {

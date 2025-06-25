@@ -14,79 +14,102 @@ from ..auth import get_current_token
 router = APIRouter(prefix="/api", tags=["upload"])
 
 
-async def cleanup_old_flamegraphs_if_needed(db: AsyncSession, environment_id: str, max_flamegraphs: int = 100):
+async def cleanup_old_flamegraphs_if_needed(
+    db: AsyncSession, environment_id: str, max_flamegraphs: int = 100
+):
     """
     Set flamegraph_html to NULL for runs older than the last max_flamegraphs in this environment.
     """
     logger = logging.getLogger(__name__)
-    
+
     keep_runs_result = await db.execute(
-        select(models.Run.run_id).where(
-            models.Run.environment_id == environment_id
-        ).order_by(desc(models.Run.timestamp)).limit(max_flamegraphs)
+        select(models.Run.run_id)
+        .where(models.Run.environment_id == environment_id)
+        .order_by(desc(models.Run.timestamp))
+        .limit(max_flamegraphs)
     )
     keep_run_ids = [row[0] for row in keep_runs_result.fetchall()]
-    
+
     if not keep_run_ids:
         return 0
-    
+
     total_flamegraphs_result = await db.execute(
-        select(func.count()).select_from(models.BenchmarkResult).join(models.Run).where(
+        select(func.count())
+        .select_from(models.BenchmarkResult)
+        .join(models.Run)
+        .where(
             models.Run.environment_id == environment_id,
-            models.BenchmarkResult.flamegraph_html.is_not(None)
+            models.BenchmarkResult.flamegraph_html.is_not(None),
         )
     )
     total_flamegraphs_before = total_flamegraphs_result.scalar()
-    
-    count_query = select(func.count()).select_from(models.BenchmarkResult).where(
-        and_(
-            models.BenchmarkResult.run_id.not_in(keep_run_ids),
-            models.BenchmarkResult.flamegraph_html.is_not(None)
+
+    count_query = (
+        select(func.count())
+        .select_from(models.BenchmarkResult)
+        .where(
+            and_(
+                models.BenchmarkResult.run_id.not_in(keep_run_ids),
+                models.BenchmarkResult.flamegraph_html.is_not(None),
+            )
         )
     )
     count_result = await db.execute(count_query)
     rows_to_clean = count_result.scalar()
-    
+
     if rows_to_clean == 0:
-        logger.info(f"No flamegraphs need cleaning for environment '{environment_id}' (all {total_flamegraphs_before} flamegraphs are from recent runs)")
-        return 0
-    
-    cleanup_query = update(models.BenchmarkResult).where(
-        and_(
-            models.BenchmarkResult.run_id.not_in(keep_run_ids),
-            models.BenchmarkResult.flamegraph_html.is_not(None)
+        logger.info(
+            f"No flamegraphs need cleaning for environment '{environment_id}' (all {total_flamegraphs_before} flamegraphs are from recent runs)"
         )
-    ).values(flamegraph_html=None)
-    
+        return 0
+
+    cleanup_query = (
+        update(models.BenchmarkResult)
+        .where(
+            and_(
+                models.BenchmarkResult.run_id.not_in(keep_run_ids),
+                models.BenchmarkResult.flamegraph_html.is_not(None),
+            )
+        )
+        .values(flamegraph_html=None)
+    )
+
     try:
         result = await db.execute(cleanup_query)
         await db.commit()
-        
+
         verify_result = await db.execute(count_query)
         remaining = verify_result.scalar()
         actual_cleaned = rows_to_clean - remaining
-        
+
         final_flamegraphs_result = await db.execute(
-            select(func.count()).select_from(models.BenchmarkResult).join(models.Run).where(
+            select(func.count())
+            .select_from(models.BenchmarkResult)
+            .join(models.Run)
+            .where(
                 models.Run.environment_id == environment_id,
-                models.BenchmarkResult.flamegraph_html.is_not(None)
+                models.BenchmarkResult.flamegraph_html.is_not(None),
             )
         )
         total_flamegraphs_after = final_flamegraphs_result.scalar()
-        
+
         if actual_cleaned > 0:
-            logger.info(f"Cleaned up {actual_cleaned} flamegraphs for environment '{environment_id}': {total_flamegraphs_before} → {total_flamegraphs_after} flamegraphs remaining")
+            logger.info(
+                f"Cleaned up {actual_cleaned} flamegraphs for environment '{environment_id}': {total_flamegraphs_before} → {total_flamegraphs_after} flamegraphs remaining"
+            )
         else:
-            logger.error(f"Cleanup FAILED for environment '{environment_id}'. Expected to clean {rows_to_clean}, but {remaining} still remain")
-        
+            logger.error(
+                f"Cleanup FAILED for environment '{environment_id}'. Expected to clean {rows_to_clean}, but {remaining} still remain"
+            )
+
         return actual_cleaned
-        
+
     except Exception as e:
-        logger.error(f"Exception during cleanup for environment '{environment_id}': {e}")
+        logger.error(
+            f"Exception during cleanup for environment '{environment_id}': {e}"
+        )
         await db.rollback()
         raise
-
-
 
 
 @router.post("/upload-run", response_model=dict)
@@ -298,14 +321,18 @@ async def upload_worker_run(
     except IntegrityError as e:
         # Handle unique constraint violation for duplicate commit+binary+environment
         if "unique_commit_binary_env" in str(e).lower():
-            logger.error(f"Upload failed: Duplicate run for commit {commit_sha[:8]}, binary '{binary_id}', environment '{environment_id}'")
+            logger.error(
+                f"Upload failed: Duplicate run for commit {commit_sha[:8]}, binary '{binary_id}', environment '{environment_id}'"
+            )
             raise HTTPException(
                 status_code=409,
-                detail=f"A run already exists for commit {commit_sha[:8]} with binary '{binary_id}' and environment '{environment_id}'. Duplicate uploads are not allowed."
+                detail=f"A run already exists for commit {commit_sha[:8]} with binary '{binary_id}' and environment '{environment_id}'. Duplicate uploads are not allowed.",
             )
         else:
             logger.error(f"Database integrity error during upload: {e}")
-            raise HTTPException(status_code=500, detail=f"Database integrity error: {str(e)}")
+            raise HTTPException(
+                status_code=500, detail=f"Database integrity error: {str(e)}"
+            )
     except HTTPException:
         # Re-raise HTTP exceptions (validation errors) as-is
         raise

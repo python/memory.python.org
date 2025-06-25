@@ -147,4 +147,3 @@ export interface LoadingState {
 export interface ErrorState {
   [key: string]: string | null;
 }
-

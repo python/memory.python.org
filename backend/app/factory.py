@@ -8,28 +8,42 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .database import create_tables
-from .logging_config import LoggingManager, request_id_var, request_start_time_var, get_logger
-from .routers import health, commits, binaries, environments, benchmarks, upload, admin, public
+from .logging_config import (
+    LoggingManager,
+    request_id_var,
+    request_start_time_var,
+    get_logger,
+)
+from .routers import (
+    health,
+    commits,
+    binaries,
+    environments,
+    benchmarks,
+    upload,
+    admin,
+    public,
+)
 
 
 def create_app(settings=None) -> FastAPI:
     """Create and configure the FastAPI application."""
     if settings is None:
         settings = get_settings()
-    
+
     # Create FastAPI instance
     app = FastAPI(
         title=settings.api_title,
         version=settings.api_version,
         docs_url="/api/docs",
         redoc_url="/api/redoc",
-        openapi_url="/api/openapi.json"
+        openapi_url="/api/openapi.json",
     )
-    
+
     # Store dependencies in app state
     app.state.settings = settings
     app.state.logging_manager = LoggingManager(settings)
-    
+
     # Configure CORS
     cors_origins_list = settings.cors_origins_list
     if cors_origins_list:
@@ -45,7 +59,7 @@ def create_app(settings=None) -> FastAPI:
     else:
         logger = get_logger("api.cors")
         logger.warning("No CORS origins configured - all origins will be blocked")
-    
+
     # Add request logging middleware
     @app.middleware("http")
     async def log_requests(request: Request, call_next):
@@ -118,7 +132,7 @@ def create_app(settings=None) -> FastAPI:
             response.headers["X-Request-ID"] = request_id
 
         return response
-    
+
     # Configure startup event
     @app.on_event("startup")
     async def startup_event():
@@ -140,13 +154,14 @@ def create_app(settings=None) -> FastAPI:
         )
         await create_tables()
         logger.info("Database tables created successfully")
-        
+
         # Ensure initial admin user exists
         from .database import AsyncSessionLocal
         from .crud import ensure_initial_admin
+
         async with AsyncSessionLocal() as db:
             await ensure_initial_admin(db, settings.admin_initial_username)
-    
+
     # Include routers
     app.include_router(health.router)
     app.include_router(commits.router)
@@ -156,5 +171,5 @@ def create_app(settings=None) -> FastAPI:
     app.include_router(upload.router)
     app.include_router(admin.router)
     app.include_router(public.router)
-    
+
     return app

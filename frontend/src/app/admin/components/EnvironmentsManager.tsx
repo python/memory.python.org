@@ -39,7 +39,8 @@ export default function EnvironmentsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   const [formData, setFormData] = useState({
     id: '',
@@ -118,7 +119,9 @@ export default function EnvironmentsManager() {
         title: 'Error',
         description: `Failed to ${
           editingEnvironment ? 'update' : 'create'
-        } environment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        } environment: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         variant: 'destructive',
       });
     }
@@ -160,7 +163,9 @@ export default function EnvironmentsManager() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: `Failed to delete environment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        description: `Failed to delete environment: ${
+          error instanceof Error ? error.message : 'Unknown error'
+        }`,
         variant: 'destructive',
       });
     }

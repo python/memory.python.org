@@ -99,7 +99,7 @@ async def create_commit(
     timestamp = commit.timestamp
     if timestamp.tzinfo is not None:
         timestamp = timestamp.replace(tzinfo=None)
-    
+
     db_commit = models.Commit(
         sha=commit.sha,
         timestamp=timestamp,
@@ -118,8 +118,7 @@ async def create_commit(
 async def get_binaries(db: AsyncSession) -> List[models.Binary]:
     result = await db.execute(
         select(models.Binary).order_by(
-            models.Binary.display_order.asc(), 
-            models.Binary.name.asc()
+            models.Binary.display_order.asc(), models.Binary.name.asc()
         )
     )
     return result.scalars().all()
@@ -217,7 +216,7 @@ async def get_runs_with_commits(
 
     if commit_sha:
         # Use prefix matching (starts with) for commit SHA
-        query = query.where(models.Run.commit_sha.ilike(f'{commit_sha}%'))
+        query = query.where(models.Run.commit_sha.ilike(f"{commit_sha}%"))
     if binary_id:
         query = query.where(models.Run.binary_id == binary_id)
     if environment_id:
@@ -239,7 +238,7 @@ async def count_runs(
 
     if commit_sha:
         # Use prefix matching (starts with) for commit SHA
-        query = query.where(models.Run.commit_sha.ilike(f'{commit_sha}%'))
+        query = query.where(models.Run.commit_sha.ilike(f"{commit_sha}%"))
     if binary_id:
         query = query.where(models.Run.binary_id == binary_id)
     if environment_id:
@@ -254,7 +253,7 @@ async def create_run(db: AsyncSession, run: schemas.RunCreate) -> models.Run:
     timestamp = run.timestamp
     if timestamp.tzinfo is not None:
         timestamp = timestamp.replace(tzinfo=None)
-    
+
     db_run = models.Run(
         run_id=run.run_id,
         commit_sha=run.commit_sha,
@@ -467,9 +466,7 @@ async def create_auth_token(
     db: AsyncSession, token: str, name: str, description: str = None
 ) -> models.AuthToken:
     """Create a new auth token."""
-    db_token = models.AuthToken(
-        token=token, name=name, description=description
-    )
+    db_token = models.AuthToken(token=token, name=name, description=description)
     db.add(db_token)
     await db.commit()
     await db.refresh(db_token)
@@ -512,30 +509,34 @@ async def deactivate_auth_token(db: AsyncSession, token_id: int) -> bool:
 async def get_admin_users(db: AsyncSession) -> List[models.AdminUser]:
     """Get all admin users."""
     result = await db.execute(
-        select(models.AdminUser).where(models.AdminUser.is_active == True).order_by(models.AdminUser.added_at)
+        select(models.AdminUser)
+        .where(models.AdminUser.is_active == True)
+        .order_by(models.AdminUser.added_at)
     )
     return result.scalars().all()
 
 
-async def get_admin_user_by_username(db: AsyncSession, username: str) -> Optional[models.AdminUser]:
+async def get_admin_user_by_username(
+    db: AsyncSession, username: str
+) -> Optional[models.AdminUser]:
     """Get admin user by GitHub username."""
     result = await db.execute(
         select(models.AdminUser).where(
             and_(
                 models.AdminUser.github_username == username,
-                models.AdminUser.is_active == True
+                models.AdminUser.is_active == True,
             )
         )
     )
     return result.scalars().first()
 
 
-async def create_admin_user(db: AsyncSession, username: str, added_by: str, notes: Optional[str] = None) -> models.AdminUser:
+async def create_admin_user(
+    db: AsyncSession, username: str, added_by: str, notes: Optional[str] = None
+) -> models.AdminUser:
     """Create a new admin user."""
     admin_user = models.AdminUser(
-        github_username=username,
-        added_by=added_by,
-        notes=notes
+        github_username=username, added_by=added_by, notes=notes
     )
     db.add(admin_user)
     await db.commit()
@@ -566,10 +567,12 @@ async def ensure_initial_admin(db: AsyncSession, username: str) -> None:
     """Ensure the initial admin user exists."""
     if not username:
         return
-    
+
     existing = await get_admin_user_by_username(db, username)
     if not existing:
         logger.info(f"Creating initial admin user: {username}")
-        await create_admin_user(db, username, "system", "Initial admin from environment variable")
+        await create_admin_user(
+            db, username, "system", "Initial admin from environment variable"
+        )
     else:
         logger.info(f"Initial admin user already exists: {username}")

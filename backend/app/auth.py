@@ -48,7 +48,9 @@ async def get_current_token(
     if not auth_token:
         # Only log token length and first/last 4 characters for security
         masked_token = f"{token[:4]}...{token[-4:]}" if len(token) > 8 else "***"
-        logger.warning(f"Authentication failed: Invalid token {masked_token} (length: {len(token)})")
+        logger.warning(
+            f"Authentication failed: Invalid token {masked_token} (length: {len(token)})"
+        )
         raise authentication_failed("Invalid or expired token")
 
     # Set user context for logging

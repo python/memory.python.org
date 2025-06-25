@@ -28,7 +28,8 @@ export default function FlamegraphPage({ params }: FlamegraphPageProps) {
         setFlamegraphHtml(data.flamegraph_html || '');
       } catch (err) {
         console.error('Error fetching flamegraph:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load flamegraph';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load flamegraph';
         setError(errorMessage);
         toast({
           title: 'Error',

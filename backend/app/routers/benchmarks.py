@@ -195,7 +195,7 @@ async def get_batch_benchmark_trends(
     when fetching trends for multiple benchmark-binary combinations.
     """
     results = {}
-    
+
     for trend_query in request.trend_queries:
         key = f"{trend_query.binary_id}:{trend_query.benchmark_name}"
         trends = await crud.get_benchmark_trends(
@@ -208,7 +208,7 @@ async def get_batch_benchmark_trends(
             limit=trend_query.limit,
         )
         results[key] = trends
-    
+
     return schemas.BatchTrendResponse(results=results)
 
 

@@ -6,7 +6,15 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { LineChart, GitCompareArrows, Code2, ListChecks, GitCompare, GitBranch, Info } from 'lucide-react';
+import {
+  LineChart,
+  GitCompareArrows,
+  Code2,
+  ListChecks,
+  GitCompare,
+  GitBranch,
+  Info,
+} from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -72,12 +80,12 @@ export default function Home() {
         Analyze memory behavior trends, compare builds and commits, and
         investigate performance regressions in the CPython project.
       </p>
-      
+
       {/* Powered by Memray - anime style! */}
       <div className="relative mb-12 group">
         <div className="absolute inset-0 bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-cyan-500/20 rounded-full blur-xl opacity-0 group-hover:opacity-100 transition-all duration-500 group-hover:scale-110"></div>
-        <Link 
-          href="https://bloomberg.github.io/memray/" 
+        <Link
+          href="https://bloomberg.github.io/memray/"
           target="_blank"
           rel="noopener noreferrer"
           className="relative inline-flex items-center gap-3 px-5 py-2.5 rounded-full border-2 border-transparent bg-background/80 backdrop-blur-sm group-hover:border-primary/50 transition-all duration-500 group-hover:scale-110 group-hover:rotate-1 hover:shadow-2xl hover:shadow-primary/20"
@@ -92,7 +100,7 @@ export default function Home() {
               alt="Memray"
               width={130}
               height={40}
-              style={{ height: "auto" }}
+              style={{ height: 'auto' }}
               className="relative opacity-80 group-hover:opacity-100 transition-all duration-500 group-hover:drop-shadow-[0_0_20px_rgba(236,72,153,0.5)]"
             />
           </div>
@@ -127,7 +135,7 @@ export default function Home() {
             </Card>
           ))}
         </div>
-        
+
         {/* Second row - 3 cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {features.slice(3).map((feature, index) => (
@@ -156,7 +164,6 @@ export default function Home() {
           ))}
         </div>
       </div>
-
     </div>
   );
 }

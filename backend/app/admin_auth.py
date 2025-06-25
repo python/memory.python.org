@@ -23,8 +23,10 @@ async def create_admin_session(
 ) -> str:
     """Create a new admin session for a GitHub user."""
     session_token = secrets.token_urlsafe(48)
-    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(hours=duration_hours)
-    
+    expires_at = datetime.now(UTC).replace(tzinfo=None) + timedelta(
+        hours=duration_hours
+    )
+
     admin_session = AdminSession(
         session_token=session_token,
         github_user_id=github_user.id,
@@ -34,11 +36,11 @@ async def create_admin_session(
         github_avatar_url=github_user.avatar_url,
         expires_at=expires_at,
     )
-    
+
     db.add(admin_session)
     await db.commit()
     await db.refresh(admin_session)
-    
+
     return session_token
 
 
@@ -80,10 +82,10 @@ async def cleanup_expired_sessions(db: AsyncSession) -> None:
         )
     )
     expired_sessions = result.scalars().all()
-    
+
     for session in expired_sessions:
         session.is_active = False
-    
+
     if expired_sessions:
         await db.commit()
 
@@ -103,7 +105,7 @@ async def require_admin_auth(
             detail="Admin authentication required",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     try:
         session = await get_admin_session(db, admin_session_token)
     except Exception as e:
@@ -114,14 +116,14 @@ async def require_admin_auth(
             detail="Authentication service unavailable",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired admin session",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     # Check if user is still an admin (for existing sessions, we need a valid token)
     # Note: This check is disabled for existing sessions as we don't store the access token
     # Team membership is verified during initial login only
@@ -131,7 +133,7 @@ async def require_admin_auth(
     #         status_code=status.HTTP_403_FORBIDDEN,
     #         detail="Admin privileges revoked",
     #     )
-    
+
     return session
 
 
@@ -146,7 +148,7 @@ async def optional_admin_auth(
     """
     if not admin_session_token:
         return None
-    
+
     try:
         return await require_admin_auth(request, admin_session_token, db)
     except HTTPException:

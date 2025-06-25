@@ -7,10 +7,11 @@ from .config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
 def create_database_engine():
     """Create database engine with proper configuration."""
     settings = get_settings()
-    
+
     engine_kwargs = {
         "echo": settings.database_echo,
         "pool_size": settings.database_pool_size,
@@ -20,7 +21,7 @@ def create_database_engine():
         # Add connection timeout for production
         "connect_args": {"timeout": 30} if "sqlite" in settings.database_url else {},
     }
-    
+
     # Add additional PostgreSQL/MySQL specific optimizations
     if "postgresql" in settings.database_url:
         engine_kwargs["connect_args"] = {
@@ -34,7 +35,7 @@ def create_database_engine():
             "charset": "utf8mb4",
             "autocommit": False,
         }
-    
+
     logger.info(
         f"Creating database engine: {settings.database_url.split('@')[-1] if '@' in settings.database_url else settings.database_url}"
     )
@@ -43,8 +44,9 @@ def create_database_engine():
         f"max_overflow={settings.database_max_overflow}, "
         f"recycle={settings.database_pool_recycle}s"
     )
-    
+
     return create_async_engine(settings.database_url, **engine_kwargs)
+
 
 # Create engine using factory function
 engine = create_database_engine()
@@ -86,6 +88,7 @@ async def drop_tables():
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
+
 
 @asynccontextmanager
 async def transaction_scope() -> AsyncGenerator[AsyncSession, None]:

@@ -23,8 +23,6 @@ export interface ChartProps extends BaseComponentProps {
   yAxisDomain?: [number, number];
 }
 
-
-
 // Data table component props
 export interface DataTableColumn<T> {
   key: keyof T;
@@ -62,9 +60,6 @@ export interface BuildComparisonPageProps {
   initialEnvironmentId?: string;
 }
 
-
-
 // Metric and utility types
 export type MetricKey = 'high_watermark_bytes' | 'total_allocated_bytes';
 export type SortDirection = 'asc' | 'desc';
-

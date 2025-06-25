@@ -24,7 +24,8 @@ import type {
   UploadRequestData,
 } from '../types/api';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
 class ApiError extends Error {
   constructor(
@@ -142,12 +143,13 @@ export const api = {
     binaryId: string,
     environmentId: string
   ) =>
-    fetchApi<CommitSummary[]>(`/binaries/${binaryId}/environments/${environmentId}/commits`),
+    fetchApi<CommitSummary[]>(
+      `/binaries/${binaryId}/environments/${environmentId}/commits`
+    ),
 
   // Environment endpoints
   getEnvironments: () => fetchApi<Environment[]>('/environments'),
-  getEnvironment: (id: string) =>
-    fetchApi<Environment>(`/environments/${id}`),
+  getEnvironment: (id: string) => fetchApi<Environment>(`/environments/${id}`),
 
   // Python version endpoints
   getPythonVersions: () =>
@@ -244,26 +246,30 @@ export const api = {
 
   // Admin user endpoints
   getAdminUsers: () =>
-    fetchApi<Array<{
-      id: number;
-      github_username: string;
-      added_by: string;
-      added_at: string;
-      is_active: boolean;
-      notes?: string;
-    }>>('/admin/users', {
+    fetchApi<
+      Array<{
+        id: number;
+        github_username: string;
+        added_by: string;
+        added_at: string;
+        is_active: boolean;
+        notes?: string;
+      }>
+    >('/admin/users', {
       credentials: 'include',
     }),
 
   // Public endpoints
   getMaintainers: () =>
-    fetchApi<Array<{
-      id: number;
-      github_username: string;
-      added_by: string;
-      added_at: string;
-      is_active: boolean;
-    }>>('/maintainers'),
+    fetchApi<
+      Array<{
+        id: number;
+        github_username: string;
+        added_by: string;
+        added_at: string;
+        is_active: boolean;
+      }>
+    >('/maintainers'),
 };
 
 export default api;

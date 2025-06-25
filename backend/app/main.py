@@ -16,10 +16,10 @@ app = get_application()
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     settings = get_settings()
     application = create_app(settings)
-    
+
     # Configure logging for standalone execution
     application.state.logging_manager.configure_logging()
 

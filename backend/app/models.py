@@ -90,8 +90,7 @@ class Run(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "commit_sha", "binary_id", "environment_id", 
-            name="unique_commit_binary_env"
+            "commit_sha", "binary_id", "environment_id", name="unique_commit_binary_env"
         ),
         Index("idx_runs_timestamp", "timestamp"),
         Index(
@@ -146,7 +145,9 @@ class AuthToken(Base):
     )  # SHA-256 hex = 64 chars
     name = Column(String(255), nullable=False)  # Human-readable name for the token
     description = Column(Text, nullable=True)  # Optional description
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     last_used = Column(DateTime, nullable=True)  # Track when token was last used
     is_active = Column(Boolean, nullable=False, default=True)  # Allow disabling tokens
 
@@ -163,7 +164,9 @@ class AdminUser(Base):
     github_username = Column(String(255), unique=True, nullable=False, index=True)
     github_user_id = Column(Integer, nullable=True)  # Optional, for reference
     added_by = Column(String(255), nullable=False)  # Who added this admin
-    added_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    added_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     is_active = Column(Boolean, nullable=False, default=True)
     notes = Column(Text, nullable=True)  # Optional notes about this admin
 
@@ -183,7 +186,9 @@ class AdminSession(Base):
     github_name = Column(String(255), nullable=True)
     github_email = Column(String(255), nullable=True)
     github_avatar_url = Column(String(500), nullable=True)
-    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None))
+    created_at = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
     expires_at = Column(DateTime, nullable=False)
     is_active = Column(Boolean, nullable=False, default=True)
 

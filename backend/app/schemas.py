@@ -180,6 +180,6 @@ class AdminUserPublic(BaseModel):
     added_by: str
     added_at: datetime
     is_active: bool
-    
+
     class Config:
         from_attributes = True

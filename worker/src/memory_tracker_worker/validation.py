@@ -1,4 +1,5 @@
 """Validation and prerequisite checking utilities."""
+
 import logging
 import os
 import shutil
@@ -12,16 +13,16 @@ logger = logging.getLogger(__name__)
 
 def check_prerequisites() -> Tuple[bool, str]:
     """Check if all prerequisites are available."""
-    required_tools = ['make', 'gcc', 'git']
+    required_tools = ["make", "gcc", "git"]
     missing = []
-    
+
     for tool in required_tools:
         if not shutil.which(tool):
             missing.append(tool)
-    
+
     if missing:
         return False, f"Missing required tools: {', '.join(missing)}"
-    
+
     return True, ""
 
 
@@ -29,13 +30,13 @@ def validate_commit_range(repo: git.Repo, commit_range: str) -> Tuple[bool, str]
     """Validate that the given commit range is valid."""
     try:
         # A range is provided if there is a .. or ... otherwise is a single refspec
-        if '..' not in commit_range and '...' not in commit_range:
+        if ".." not in commit_range and "..." not in commit_range:
             # Single refspec - validate just that one commit exists
             commits = list(repo.iter_commits(commit_range, max_count=1))
         else:
             # Range - use as-is
             commits = list(repo.iter_commits(commit_range))
-        
+
         if not commits:
             return False, f"No commits found in range: {commit_range}"
         return True, ""
@@ -50,8 +51,8 @@ def check_output_directory(output_dir: Path) -> Tuple[bool, str]:
     try:
         output_dir.mkdir(parents=True, exist_ok=True)
         # Try to write a test file
-        test_file = output_dir / '.test_write'
-        test_file.write_text('test')
+        test_file = output_dir / ".test_write"
+        test_file.write_text("test")
         test_file.unlink()
         return True, ""
     except Exception as e:
@@ -62,14 +63,14 @@ def check_output_directory(output_dir: Path) -> Tuple[bool, str]:
 
 def check_build_environment(repo_path: Path) -> Tuple[bool, str]:
     """Check if the build environment is ready."""
-    configure_script = repo_path / 'configure'
+    configure_script = repo_path / "configure"
     if not configure_script.exists():
         return False, f"configure script not found in {repo_path}"
-    
-    makefile_in = repo_path / 'Makefile.pre.in'
+
+    makefile_in = repo_path / "Makefile.pre.in"
     if not makefile_in.exists():
         return False, f"Makefile.pre.in not found in {repo_path}"
-    
+
     return True, ""
 
 
@@ -77,13 +78,13 @@ def get_commits_to_process(repo: git.Repo, commit_range: str) -> list:
     """Get the list of commits to process from the commit range."""
     try:
         # A range is provided if there is a .. or ... otherwise is a single refspec
-        if '..' not in commit_range and '...' not in commit_range:
+        if ".." not in commit_range and "..." not in commit_range:
             # Single refspec - get just that one commit
             commits = list(repo.iter_commits(commit_range, max_count=1))
         else:
             # Range - use as-is
             commits = list(repo.iter_commits(commit_range))
-        
+
         if not commits:
             raise ValueError(f"No commits found in range: {commit_range}")
         return commits

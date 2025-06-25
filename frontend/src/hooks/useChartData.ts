@@ -2,7 +2,6 @@
 
 import { useMemo } from 'react';
 
-
 export function useFilteredDiffData<T extends Record<string, any>>(
   data: T[],
   filterBenchmarkName: string,

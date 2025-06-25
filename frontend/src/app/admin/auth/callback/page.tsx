@@ -20,7 +20,8 @@ function AuthCallbackContent() {
   );
   const [errorMessage, setErrorMessage] = useState('');
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
+  const API_BASE =
+    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   useEffect(() => {
     const handleCallback = async () => {
@@ -67,7 +68,9 @@ function AuthCallbackContent() {
       } catch (error) {
         console.error('Auth callback error:', error);
         setStatus('error');
-        setErrorMessage(error instanceof Error ? error.message : 'Authentication failed');
+        setErrorMessage(
+          error instanceof Error ? error.message : 'Authentication failed'
+        );
       }
     };
 

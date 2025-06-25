@@ -11,19 +11,38 @@ from sqlalchemy import select, delete, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_database
-from ..admin_auth import require_admin_auth, create_admin_session, invalidate_admin_session
+from ..admin_auth import (
+    require_admin_auth,
+    create_admin_session,
+    invalidate_admin_session,
+)
 from ..oauth import github_oauth
-from ..models import AdminSession, Binary, Environment, Run, AdminUser, AuthToken, BenchmarkResult
-from ..schemas import BinaryCreate, Binary as BinarySchema, EnvironmentCreate, Environment as EnvironmentSchema
+from ..models import (
+    AdminSession,
+    Binary,
+    Environment,
+    Run,
+    AdminUser,
+    AuthToken,
+    BenchmarkResult,
+)
+from ..schemas import (
+    BinaryCreate,
+    Binary as BinarySchema,
+    EnvironmentCreate,
+    Environment as EnvironmentSchema,
+)
 from .. import crud
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
+
 # Pydantic schemas for admin user management
 class AdminUserCreate(BaseModel):
     github_username: str
     notes: Optional[str] = None
+
 
 class AdminUserResponse(BaseModel):
     id: int
@@ -33,10 +52,12 @@ class AdminUserResponse(BaseModel):
     is_active: bool
     notes: Optional[str] = None
 
+
 # Pydantic schemas for token management
 class TokenCreate(BaseModel):
     name: str
     description: Optional[str] = None
+
 
 class TokenResponse(BaseModel):
     id: int
@@ -47,9 +68,11 @@ class TokenResponse(BaseModel):
     is_active: bool
     token_preview: str  # First 8 + last 4 characters
 
+
 class TokenUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+
 
 class TokenAnalytics(BaseModel):
     total_tokens: int
@@ -58,6 +81,7 @@ class TokenAnalytics(BaseModel):
     used_tokens: int
     never_used_tokens: int
     recent_active_tokens: int
+
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
@@ -81,19 +105,19 @@ async def github_auth_callback(
     try:
         # Exchange code for access token
         access_token = await github_oauth.exchange_code_for_token(code, state)
-        
+
         # Get user info
         github_user = await github_oauth.get_user_info(access_token)
-        
+
         # Check if user is admin
         is_admin = await github_oauth.is_admin_user(github_user.login, db)
-        
+
         if not is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="User is not authorized as admin",
             )
-        
+
         # Create admin session
         try:
             session_token = await create_admin_session(db, github_user)
@@ -103,11 +127,11 @@ async def github_auth_callback(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Database error: {str(db_error)}",
             )
-        
+
         # Set secure cookie
         # Determine if we're using HTTPS
         is_https = request.url.scheme == "https"
-        
+
         response.set_cookie(
             key="admin_session",
             value=session_token,
@@ -118,7 +142,7 @@ async def github_auth_callback(
             domain=None,  # Let the browser handle the domain
             path="/",  # Make cookie available for all paths
         )
-        
+
         return {
             "success": True,
             "user": {
@@ -127,7 +151,7 @@ async def github_auth_callback(
                 "avatar_url": github_user.avatar_url,
             },
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
@@ -187,7 +211,7 @@ async def create_binary(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Binary with this ID already exists",
         )
-    
+
     return await crud.create_binary(db, binary)
 
 
@@ -205,7 +229,7 @@ async def update_binary(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Binary not found",
         )
-    
+
     # Update fields
     existing.name = binary_update.name
     existing.flags = binary_update.flags
@@ -213,7 +237,7 @@ async def update_binary(
     existing.color = binary_update.color
     existing.icon = binary_update.icon
     existing.display_order = binary_update.display_order
-    
+
     await db.commit()
     await db.refresh(existing)
     return existing
@@ -232,18 +256,20 @@ async def delete_binary(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Binary not found",
         )
-    
+
     # Get all runs for this binary to cascade delete benchmark results
     runs_result = await db.execute(select(Run.run_id).where(Run.binary_id == binary_id))
     run_ids = [row[0] for row in runs_result.fetchall()]
-    
+
     # Delete all benchmark results for runs associated with this binary
     if run_ids:
-        await db.execute(delete(BenchmarkResult).where(BenchmarkResult.run_id.in_(run_ids)))
-    
+        await db.execute(
+            delete(BenchmarkResult).where(BenchmarkResult.run_id.in_(run_ids))
+        )
+
     # Delete all runs for this binary
     await db.execute(delete(Run).where(Run.binary_id == binary_id))
-    
+
     # Finally delete the binary
     await db.execute(delete(Binary).where(Binary.id == binary_id))
     await db.commit()
@@ -274,7 +300,7 @@ async def create_environment(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Environment with this ID already exists",
         )
-    
+
     return await crud.create_environment(db, environment)
 
 
@@ -292,11 +318,11 @@ async def update_environment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Environment not found",
         )
-    
+
     # Update fields
     existing.name = environment_update.name
     existing.description = environment_update.description
-    
+
     await db.commit()
     await db.refresh(existing)
     return existing
@@ -315,18 +341,22 @@ async def delete_environment(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Environment not found",
         )
-    
+
     # Get all runs for this environment to cascade delete benchmark results
-    runs_result = await db.execute(select(Run.run_id).where(Run.environment_id == environment_id))
+    runs_result = await db.execute(
+        select(Run.run_id).where(Run.environment_id == environment_id)
+    )
     run_ids = [row[0] for row in runs_result.fetchall()]
-    
+
     # Delete all benchmark results for runs associated with this environment
     if run_ids:
-        await db.execute(delete(BenchmarkResult).where(BenchmarkResult.run_id.in_(run_ids)))
-    
+        await db.execute(
+            delete(BenchmarkResult).where(BenchmarkResult.run_id.in_(run_ids))
+        )
+
     # Delete all runs for this environment
     await db.execute(delete(Run).where(Run.environment_id == environment_id))
-    
+
     # Finally delete the environment
     await db.execute(delete(Environment).where(Environment.id == environment_id))
     await db.commit()
@@ -347,7 +377,7 @@ async def list_runs(
     """List runs with their commit information and pagination."""
     # Limit maximum page size to prevent performance issues
     limit = min(limit, 100)
-    
+
     # Get runs with commit information
     runs_with_commits = await crud.get_runs_with_commits(
         db,
@@ -357,7 +387,7 @@ async def list_runs(
         skip=skip,
         limit=limit,
     )
-    
+
     # Get total count for pagination
     total_count = await crud.count_runs(
         db,
@@ -365,38 +395,40 @@ async def list_runs(
         binary_id=binary_id,
         environment_id=environment_id,
     )
-    
+
     # Format the response to include both run and commit data
     formatted_runs = []
     for run, commit in runs_with_commits:
-        formatted_runs.append({
-            "run_id": run.run_id,
-            "commit_sha": run.commit_sha,
-            "binary_id": run.binary_id,
-            "environment_id": run.environment_id,
-            "python_major": run.python_major,
-            "python_minor": run.python_minor,
-            "python_patch": run.python_patch,
-            "timestamp": run.timestamp,
-            "commit": {
-                "sha": commit.sha,
-                "timestamp": commit.timestamp,
-                "message": commit.message,
-                "author": commit.author,
-                "python_major": commit.python_major,
-                "python_minor": commit.python_minor,
-                "python_patch": commit.python_patch,
+        formatted_runs.append(
+            {
+                "run_id": run.run_id,
+                "commit_sha": run.commit_sha,
+                "binary_id": run.binary_id,
+                "environment_id": run.environment_id,
+                "python_major": run.python_major,
+                "python_minor": run.python_minor,
+                "python_patch": run.python_patch,
+                "timestamp": run.timestamp,
+                "commit": {
+                    "sha": commit.sha,
+                    "timestamp": commit.timestamp,
+                    "message": commit.message,
+                    "author": commit.author,
+                    "python_major": commit.python_major,
+                    "python_minor": commit.python_minor,
+                    "python_patch": commit.python_patch,
+                },
             }
-        })
-    
+        )
+
     return {
         "runs": formatted_runs,
         "pagination": {
             "skip": skip,
             "limit": limit,
             "total": total_count,
-            "has_more": skip + len(formatted_runs) < total_count
-        }
+            "has_more": skip + len(formatted_runs) < total_count,
+        },
     }
 
 
@@ -410,20 +442,20 @@ async def delete_run(
     # Check if run exists
     result = await db.execute(select(Run).where(Run.run_id == run_id))
     run = result.scalars().first()
-    
+
     if not run:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Run not found",
         )
-    
+
     # First delete all benchmark results for this run
     await db.execute(delete(BenchmarkResult).where(BenchmarkResult.run_id == run_id))
-    
+
     # Then delete the run
     await db.execute(delete(Run).where(Run.run_id == run_id))
     await db.commit()
-    
+
     return {"success": True}
 
 
@@ -451,12 +483,9 @@ async def create_admin_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Admin user already exists",
         )
-    
+
     return await crud.create_admin_user(
-        db, 
-        user_data.github_username, 
-        admin_session.github_username,
-        user_data.notes
+        db, user_data.github_username, admin_session.github_username, user_data.notes
     )
 
 
@@ -473,14 +502,14 @@ async def remove_admin_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Cannot remove yourself from admin users",
         )
-    
+
     success = await crud.deactivate_admin_user(db, username)
     if not success:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Admin user not found",
         )
-    
+
     return {"success": True}
 
 
@@ -492,19 +521,21 @@ async def list_tokens(
 ):
     """List all authentication tokens."""
     tokens = await crud.get_all_auth_tokens(db)
-    
+
     token_responses = []
     for token in tokens:
-        token_responses.append(TokenResponse(
-            id=token.id,
-            name=token.name,
-            description=token.description,
-            created_at=token.created_at,
-            last_used=token.last_used,
-            is_active=token.is_active,
-            token_preview=f"{token.token[:8]}...{token.token[-4:]}"
-        ))
-    
+        token_responses.append(
+            TokenResponse(
+                id=token.id,
+                name=token.name,
+                description=token.description,
+                created_at=token.created_at,
+                last_used=token.last_used,
+                is_active=token.is_active,
+                token_preview=f"{token.token[:8]}...{token.token[-4:]}",
+            )
+        )
+
     return token_responses
 
 
@@ -516,13 +547,15 @@ async def create_token(
 ):
     """Create a new authentication token."""
     import secrets
-    
+
     # Generate secure token
     token = secrets.token_bytes(32).hex()
-    
+
     # Create token in database
-    auth_token = await crud.create_auth_token(db, token, token_data.name, token_data.description)
-    
+    auth_token = await crud.create_auth_token(
+        db, token, token_data.name, token_data.description
+    )
+
     return {
         "success": True,
         "token": token,
@@ -533,8 +566,8 @@ async def create_token(
             created_at=auth_token.created_at,
             last_used=auth_token.last_used,
             is_active=auth_token.is_active,
-            token_preview=f"{token[:8]}...{token[-4:]}"
-        )
+            token_preview=f"{token[:8]}...{token[-4:]}",
+        ),
     }
 
 
@@ -548,21 +581,20 @@ async def update_token(
     """Update token name and/or description."""
     result = await db.execute(select(AuthToken).where(AuthToken.id == token_id))
     auth_token = result.scalars().first()
-    
+
     if not auth_token:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Token not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
         )
-    
+
     if token_update.name is not None:
         auth_token.name = token_update.name
     if token_update.description is not None:
         auth_token.description = token_update.description
-    
+
     await db.commit()
     await db.refresh(auth_token)
-    
+
     return TokenResponse(
         id=auth_token.id,
         name=auth_token.name,
@@ -570,7 +602,7 @@ async def update_token(
         created_at=auth_token.created_at,
         last_used=auth_token.last_used,
         is_active=auth_token.is_active,
-        token_preview=f"{auth_token.token[:8]}...{auth_token.token[-4:]}"
+        token_preview=f"{auth_token.token[:8]}...{auth_token.token[-4:]}",
     )
 
 
@@ -584,8 +616,7 @@ async def deactivate_token(
     success = await crud.deactivate_auth_token(db, token_id)
     if not success:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Token not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
         )
     return {"success": True}
 
@@ -599,13 +630,12 @@ async def activate_token(
     """Activate a deactivated authentication token."""
     result = await db.execute(select(AuthToken).where(AuthToken.id == token_id))
     auth_token = result.scalars().first()
-    
+
     if not auth_token:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Token not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
         )
-    
+
     auth_token.is_active = True
     await db.commit()
     return {"success": True}
@@ -620,13 +650,12 @@ async def delete_token(
     """Delete an authentication token."""
     result = await db.execute(select(AuthToken).where(AuthToken.id == token_id))
     auth_token = result.scalars().first()
-    
+
     if not auth_token:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Token not found"
+            status_code=status.HTTP_404_NOT_FOUND, detail="Token not found"
         )
-    
+
     await db.delete(auth_token)
     await db.commit()
     return {"success": True}
@@ -639,33 +668,33 @@ async def get_token_analytics(
 ):
     """Get token usage analytics."""
     from datetime import timedelta
-    
+
     # Get basic counts
     total_result = await db.execute(select(func.count(AuthToken.id)))
     total_tokens = total_result.scalar()
-    
+
     active_result = await db.execute(
         select(func.count(AuthToken.id)).where(AuthToken.is_active == True)
     )
     active_tokens = active_result.scalar()
-    
+
     used_result = await db.execute(
         select(func.count(AuthToken.id)).where(AuthToken.last_used.is_not(None))
     )
     used_tokens = used_result.scalar()
-    
+
     # Get recent activity (last 30 days)
     thirty_days_ago = datetime.now(UTC).replace(tzinfo=None) - timedelta(days=30)
     recent_result = await db.execute(
         select(func.count(AuthToken.id)).where(AuthToken.last_used >= thirty_days_ago)
     )
     recent_active = recent_result.scalar()
-    
+
     return TokenAnalytics(
         total_tokens=total_tokens,
         active_tokens=active_tokens,
         inactive_tokens=total_tokens - active_tokens,
         used_tokens=used_tokens,
         never_used_tokens=total_tokens - used_tokens,
-        recent_active_tokens=recent_active
+        recent_active_tokens=recent_active,
     )

@@ -265,7 +265,8 @@ export default function BinaryDetailPage({
         setBinary(binaryData);
         setEnvironments(environmentsData);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load binary details';
+        const errorMessage =
+          err instanceof Error ? err.message : 'Failed to load binary details';
         setError(errorMessage);
         toast({
           title: 'Error',
