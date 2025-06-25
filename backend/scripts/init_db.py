@@ -55,13 +55,26 @@ async def init_admin_data():
 async def init_database():
     """Initialize the database by creating all tables."""
     print("Initializing database...")
+    
+    settings = get_settings()
 
     try:
         # Import models to ensure they're registered
-        from app.models import AdminUser, AdminSession, AuthToken, Commit, Binary, Environment, Run, BenchmarkResult
+        from app.models import AdminUser, AdminSession, AuthToken, Commit, Binary, Environment, Run, BenchmarkResult, Base
+        from app.database import create_database_engine
         
-        await create_tables()
+        # Create a fresh engine with current settings
+        engine = create_database_engine()
+        
+        print(f"Connected to: {settings.database_url.split('@')[-1] if '@' in settings.database_url else settings.database_url}")
+        
+        # Create all tables
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables created successfully!")
+        
+        # Close the engine we created
+        await engine.dispose()
         
         # Initialize admin data
         admin_success = await init_admin_data()
@@ -70,6 +83,8 @@ async def init_database():
             
     except Exception as e:
         print(f"❌ Error creating database tables: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
     return True
@@ -78,16 +93,52 @@ async def init_database():
 async def reset_database():
     """Reset the database by dropping and recreating all tables."""
     print("Resetting database...")
+    
+    settings = get_settings()
+    is_postgres = "postgresql" in settings.database_url
 
     try:
         # Import models to ensure they're registered
-        from app.models import AdminUser, AdminSession, AuthToken, Commit, Binary, Environment, Run, BenchmarkResult
+        from app.models import AdminUser, AdminSession, AuthToken, Commit, Binary, Environment, Run, BenchmarkResult, Base
+        from app.database import create_database_engine
+        from sqlalchemy.ext.asyncio import create_async_engine
         
-        await drop_tables()
-        print("🗑️  Existing tables dropped")
+        # Create a fresh engine with current settings
+        engine = create_database_engine()
+        
+        print(f"Connected to: {settings.database_url.split('@')[-1] if '@' in settings.database_url else settings.database_url}")
+        
+        # For PostgreSQL, we need to handle foreign key constraints more carefully
+        if is_postgres:
+            async with engine.begin() as conn:
+                # First, drop all dependent tables (those with foreign keys)
+                print("🗑️  Dropping dependent tables...")
+                await conn.run_sync(BenchmarkResult.__table__.drop, checkfirst=True)
+                await conn.run_sync(Run.__table__.drop, checkfirst=True)
+                await conn.run_sync(AdminSession.__table__.drop, checkfirst=True)
+                
+                # Then drop the referenced tables
+                print("🗑️  Dropping referenced tables...")
+                await conn.run_sync(Commit.__table__.drop, checkfirst=True)
+                await conn.run_sync(Binary.__table__.drop, checkfirst=True)
+                await conn.run_sync(Environment.__table__.drop, checkfirst=True)
+                await conn.run_sync(AuthToken.__table__.drop, checkfirst=True)
+                await conn.run_sync(AdminUser.__table__.drop, checkfirst=True)
+                
+                print("🗑️  All tables dropped")
+        else:
+            # For SQLite, drop all tables using metadata
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.drop_all)
+            print("🗑️  Existing tables dropped")
 
-        await create_tables()
+        # Recreate all tables
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
         print("✅ Database tables recreated successfully!")
+        
+        # Close the engine we created
+        await engine.dispose()
         
         # Initialize admin data after reset
         admin_success = await init_admin_data()
@@ -96,6 +147,8 @@ async def reset_database():
             
     except Exception as e:
         print(f"❌ Error resetting database: {e}")
+        import traceback
+        traceback.print_exc()
         return False
 
     return True
@@ -110,8 +163,27 @@ if __name__ == "__main__":
         action="store_true",
         help="Reset the database (drop and recreate tables)",
     )
+    parser.add_argument(
+        "--database-url",
+        type=str,
+        help="Database URL to use (overrides DATABASE_URL env var)",
+    )
 
     args = parser.parse_args()
+
+    # Override database URL if provided
+    if args.database_url:
+        os.environ["DATABASE_URL"] = args.database_url
+        # Also try the lowercase version
+        os.environ["database_url"] = args.database_url
+        # Clear the settings cache so it picks up the new DATABASE_URL
+        from app.config import get_settings
+        get_settings.cache_clear()
+        
+        # Verify the database URL is actually being used
+        settings = get_settings()
+        print(f"Using database URL: {args.database_url.split('@')[-1] if '@' in args.database_url else args.database_url}")
+        print(f"Settings database URL: {settings.database_url.split('@')[-1] if '@' in settings.database_url else settings.database_url}")
 
     if args.reset:
         success = asyncio.run(reset_database())

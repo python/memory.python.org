@@ -8,6 +8,7 @@ from sqlalchemy import (
     JSON,
     Index,
     Boolean,
+    UniqueConstraint,
 )
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -88,8 +89,9 @@ class Run(Base):
     benchmark_results = relationship("BenchmarkResult", back_populates="run")
 
     __table_args__ = (
-        Index(
-            "idx_runs_commit_binary_env", "commit_sha", "binary_id", "environment_id"
+        UniqueConstraint(
+            "commit_sha", "binary_id", "environment_id", 
+            name="unique_commit_binary_env"
         ),
         Index("idx_runs_timestamp", "timestamp"),
         Index(
@@ -102,19 +104,12 @@ class Run(Base):
             "idx_runs_env_timestamp", "environment_id", "timestamp"
         ),  # For environment-based queries
         Index(
-            "idx_runs_timestamp_desc",
-            "timestamp",
-            postgresql_using="btree",
-            mysql_length={"timestamp": 255},
-        ),  # For ORDER BY timestamp DESC
-        Index(
             "idx_runs_env_python_timestamp",
             "environment_id",
             "python_major",
             "python_minor",
             "timestamp",
         ),  # For filtered queries
-        Index("idx_runs_binary_env_commit", "binary_id", "environment_id", "commit_sha"),
     )
 
 
