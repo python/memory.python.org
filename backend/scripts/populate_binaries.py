@@ -113,7 +113,7 @@ def get_standard_binaries():
         {
             "id": "jit",
             "name": "JIT Build",
-            "flags": ["--enable-experimental-jit=yes"],
+            "flags": ["--enable-experimental-jit"],
             "description": "Just-In-Time compilation enabled.",
             "color": "#fc03df",
             "icon": "zap",
