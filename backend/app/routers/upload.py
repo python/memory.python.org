@@ -180,10 +180,23 @@ async def upload_worker_run(
     # Validate configure flags - the registered binary flags must be a subset of uploaded flags
     configure_vars = metadata.get("configure_vars", {})
     uploaded_config_args = configure_vars.get("CONFIG_ARGS", "")
-    uploaded_flags = (
-        set(uploaded_config_args.split()) if uploaded_config_args else set()
-    )
-    registered_flags = set(binary.flags) if binary.flags else set()
+    
+    # Strip quotes from each flag and filter out non-configure flags
+    def clean_flag(flag):
+        """Remove surrounding quotes from a flag."""
+        return flag.strip().strip("'\"")
+    
+    # Split and clean uploaded flags, filtering out environment variables
+    raw_uploaded_flags = uploaded_config_args.split() if uploaded_config_args else []
+    uploaded_flags = set()
+    for flag in raw_uploaded_flags:
+        cleaned = clean_flag(flag)
+        # Only include flags that start with -- (configure flags)
+        if cleaned.startswith('--'):
+            uploaded_flags.add(cleaned)
+    
+    # Clean registered flags too for consistency
+    registered_flags = {clean_flag(flag) for flag in (binary.flags or [])}
 
     logger.debug(
         f"Configure flags validation: registered={sorted(registered_flags)}, uploaded={sorted(uploaded_flags)}"
@@ -197,12 +210,13 @@ async def upload_worker_run(
             f"Upload failed: Configure flags mismatch for binary '{binary_id}'. "
             f"Missing flags: {sorted(missing_flags)}, "
             f"Required: {sorted(registered_flags)}, "
-            f"Provided: {sorted(uploaded_flags)}"
+            f"Provided: {sorted(uploaded_flags)}, "
+            f"Raw CONFIG_ARGS: '{uploaded_config_args}'"
         )
         raise HTTPException(
             status_code=400,
-            detail=f"Binary '{binary_id}' requires configure flags {sorted(missing_flags)} but upload only has {sorted(uploaded_flags)}. "
-            f"Registered configure flags {sorted(registered_flags)} must be a subset of upload configure flags.",
+            detail=f"Binary '{binary_id}' requires configure flags {sorted(list(registered_flags))} but upload only has {sorted(list(uploaded_flags))}. "
+            f"Registered configure flags must be a subset of upload configure flags.",
         )
     logger.info(f"Configure flags validation passed for binary '{binary_id}'")
 
