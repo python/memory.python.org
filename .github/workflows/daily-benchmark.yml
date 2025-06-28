@@ -1,0 +1,174 @@
+name: Daily Memory Tracker Benchmark
+
+on:
+  schedule:
+    # Run daily at 02:00 UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: 'Date to get commits from (YYYY-MM-DD, defaults to today)'
+        required: false
+        type: string
+      binary_id:
+        description: 'Binary ID to use for benchmarking'
+        required: false
+        default: 'default'
+      environment_id:
+        description: 'Environment ID'
+        required: false
+        default: 'gcc-11'
+      server_url:
+        description: 'Memory tracker server URL'
+        required: false
+        default: 'https://memory.python.org'
+      cpython_repo:
+        description: 'CPython repository URL'
+        required: false
+        default: 'https://github.com/python/cpython.git'
+
+jobs:
+  get-daily-commits:
+    runs-on: ubuntu-latest
+    outputs:
+      commits: ${{ steps.get-commits.outputs.commits }}
+      commit-count: ${{ steps.get-commits.outputs.commit-count }}
+    
+    steps:
+    - name: Clone CPython repository
+      run: |
+        git clone ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }} cpython
+        cd cpython
+        git fetch --all
+        
+    - name: Get commits from target date
+      id: get-commits
+      run: |
+        cd cpython
+        
+        # Determine target date
+        if [ -n "${{ github.event.inputs.target_date }}" ]; then
+          TARGET_DATE="${{ github.event.inputs.target_date }}"
+        else
+          TARGET_DATE=$(date -u +%Y-%m-%d)
+        fi
+        
+        echo "Getting commits from date: $TARGET_DATE"
+        
+        # Get commits from the target date (00:00 to 23:59 UTC)
+        COMMITS=$(git log --since="$TARGET_DATE 00:00:00 UTC" --until="$TARGET_DATE 23:59:59 UTC" --pretty=format:"%H" --reverse)
+        
+        if [ -z "$COMMITS" ]; then
+          echo "No commits found for date $TARGET_DATE"
+          echo "commits=" >> $GITHUB_OUTPUT
+          echo "commit-count=0" >> $GITHUB_OUTPUT
+        else
+          # Convert to JSON array format for matrix strategy
+          COMMITS_JSON=$(echo "$COMMITS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          COMMIT_COUNT=$(echo "$COMMITS" | wc -l)
+          
+          echo "Found $COMMIT_COUNT commits for date $TARGET_DATE"
+          echo "commits=$COMMITS_JSON" >> $GITHUB_OUTPUT
+          echo "commit-count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          
+          echo "Commits to benchmark:"
+          echo "$COMMITS"
+        fi
+
+  benchmark-commits:
+    needs: get-daily-commits
+    if: needs.get-daily-commits.outputs.commit-count > 0
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        commit: ${{ fromJson(needs.get-daily-commits.outputs.commits) }}
+      fail-fast: false
+      max-parallel: 3
+    
+    steps:
+    - name: Checkout memory tracker
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Clone CPython repository
+      run: |
+        git clone ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }} cpython
+        cd cpython
+        git fetch --depth=200
+        
+    - name: Install memory tracker worker
+      run: |
+        cd worker
+        pip install -e .
+        
+    - name: Install build dependencies
+      run: |
+        # Install CPython dependencies using their script
+        cd cpython
+        sudo .github/workflows/posix-deps-apt.sh
+        
+        # Install Memray dependencies  
+        sudo apt-get install -y \
+          python3-dev \
+          libdebuginfod-dev \
+          libunwind-dev \
+          liblz4-dev
+          
+    - name: Run memory benchmark for commit
+      env:
+        MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
+      run: |
+        COMMIT="${{ matrix.commit }}"
+        
+        # Build command for single commit
+        CMD="memory-tracker benchmark '$COMMIT'"
+        CMD="$CMD --repo-path ./cpython"
+        CMD="$CMD --binary-id '${{ github.event.inputs.binary_id || 'default' }}'"
+        CMD="$CMD --environment-id '${{ github.event.inputs.environment_id || 'gcc-11' }}'"
+        CMD="$CMD --api-base '${{ github.event.inputs.server_url || 'https://memory.python.org' }}'"
+        CMD="$CMD --output-dir ./benchmark_results"
+        CMD="$CMD --force"
+        CMD="$CMD -vv"
+        
+        echo "Running benchmark for commit: $COMMIT"
+        echo "Command: $CMD"
+        eval $CMD
+          
+    - name: Upload benchmark results (if failed)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-logs-${{ matrix.commit }}
+        path: |
+          *.log
+          ./benchmark_results/
+        retention-days: 7
+        
+    - name: Upload benchmark results (on success)
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results-${{ matrix.commit }}
+        path: ./benchmark_results/
+        retention-days: 30
+
+  summary:
+    needs: [get-daily-commits, benchmark-commits]
+    if: always()
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Print summary
+      run: |
+        echo "Daily benchmark run completed"
+        echo "Total commits processed: ${{ needs.get-daily-commits.outputs.commit-count }}"
+        
+        if [ "${{ needs.get-daily-commits.outputs.commit-count }}" = "0" ]; then
+          echo "No commits found for the target date"
+        else
+          echo "Benchmark jobs completed with status: ${{ needs.benchmark-commits.result }}"
+        fi
