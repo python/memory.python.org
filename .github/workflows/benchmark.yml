@@ -31,6 +31,10 @@ on:
         description: 'Make flags for CPython build'
         required: false
         default: '-j'
+      llvm:
+        description: 'LLVM version to use'
+        required: false
+        default: '19'
 
 jobs:
   benchmark:
@@ -61,8 +65,13 @@ jobs:
         # Install CPython dependencies using their script
         cd cpython
         sudo .github/workflows/posix-deps-apt.sh
-        
-        # Install Memray dependencies  
+
+        # Install JIT dependencies
+        if [ "${{ inputs.binary_id }}" = "jit" ]; then
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh ${{ inputs.llvm }}
+        fi
+
+        # Install Memray dependencies
         sudo apt-get install -y \
           python3-dev \
           libdebuginfod-dev \
@@ -73,6 +82,10 @@ jobs:
       env:
         MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
       run: |
+        if [ "${{ inputs.binary_id }}" = "jit" ]; then
+          export PATH="$(llvm-config-${{ inputs.llvm }} --bindir):$PATH"
+        fi
+
         # Build command with conditional flags
         CMD="memory-tracker benchmark '${{ github.event.inputs.commit_range }}'"
         CMD="$CMD --repo-path ./cpython"
