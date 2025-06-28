@@ -2,22 +2,18 @@ name: Daily Memory Tracker Benchmark
 
 on:
   schedule:
-    # Run daily at 02:00 UTC
-    - cron: '0 2 * * *'
+    # Run daily at 23:00 UTC (EOD) to pick up all commits from the day
+    - cron: '0 23 * * *'
   workflow_dispatch:
     inputs:
       target_date:
         description: 'Date to get commits from (YYYY-MM-DD, defaults to today)'
         required: false
         type: string
-      binary_id:
-        description: 'Binary ID to use for benchmarking'
-        required: false
-        default: 'default'
       environment_id:
         description: 'Environment ID'
         required: false
-        default: 'gcc-11'
+        default: 'gh_actions'
       server_url:
         description: 'Memory tracker server URL'
         required: false
@@ -26,25 +22,53 @@ on:
         description: 'CPython repository URL'
         required: false
         default: 'https://github.com/python/cpython.git'
+      llvm:
+        description: 'LLVM version to use for JIT builds'
+        required: false
+        default: '19'
 
 jobs:
-  get-daily-commits:
+  benchmark-builds:
     runs-on: ubuntu-latest
-    outputs:
-      commits: ${{ steps.get-commits.outputs.commits }}
-      commit-count: ${{ steps.get-commits.outputs.commit-count }}
+    strategy:
+      matrix:
+        build_config:
+          - binary_id: 'default'
+            configure_flags: '-C'
+            description: 'Default build'
+            install_deps: 'standard'
+          - binary_id: 'debug'
+            configure_flags: '--with-pydebug'
+            description: 'Debug build'
+            install_deps: 'standard'
+          - binary_id: 'jit'
+            configure_flags: '--enable-experimental-jit'
+            description: 'JIT build'
+            install_deps: 'jit'
+          - binary_id: 'lto-pgo'
+            configure_flags: '--with-lto --enable-optimizations'
+            description: 'LTO-PGO build'
+            install_deps: 'standard'
+          - binary_id: 'nogil'
+            configure_flags: '--disable-gil'
+            description: 'Free-threaded build'
+            install_deps: 'standard'
+      fail-fast: false
     
     steps:
-    - name: Clone CPython repository
+    - name: Checkout memory tracker
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Clone CPython repository and get commits
       run: |
         git clone ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }} cpython
         cd cpython
         git fetch --all
-        
-    - name: Get commits from target date
-      id: get-commits
-      run: |
-        cd cpython
         
         # Determine target date
         if [ -n "${{ github.event.inputs.target_date }}" ]; then
@@ -60,45 +84,30 @@ jobs:
         
         if [ -z "$COMMITS" ]; then
           echo "No commits found for date $TARGET_DATE"
-          echo "commits=" >> $GITHUB_OUTPUT
-          echo "commit-count=0" >> $GITHUB_OUTPUT
+          exit 1
         else
-          # Convert to JSON array format for matrix strategy
-          COMMITS_JSON=$(echo "$COMMITS" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           COMMIT_COUNT=$(echo "$COMMITS" | wc -l)
+          FIRST_COMMIT=$(echo "$COMMITS" | head -1)
+          LAST_COMMIT=$(echo "$COMMITS" | tail -1)
           
           echo "Found $COMMIT_COUNT commits for date $TARGET_DATE"
-          echo "commits=$COMMITS_JSON" >> $GITHUB_OUTPUT
-          echo "commit-count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          echo "COMMIT_RANGE=${FIRST_COMMIT}..${LAST_COMMIT}" >> $GITHUB_ENV
+          echo "COMMIT_COUNT=$COMMIT_COUNT" >> $GITHUB_ENV
           
           echo "Commits to benchmark:"
           echo "$COMMITS"
         fi
-
-  benchmark-commits:
-    needs: get-daily-commits
-    if: needs.get-daily-commits.outputs.commit-count > 0
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        commit: ${{ fromJson(needs.get-daily-commits.outputs.commits) }}
-      fail-fast: false
-      max-parallel: 3
-    
-    steps:
-    - name: Checkout memory tracker
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
         
-    - name: Clone CPython repository
+    - name: Print environment variables
       run: |
-        git clone ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }} cpython
-        cd cpython
-        git fetch --depth=200
+        echo "=== Environment Variables ==="
+        echo "COMMIT_RANGE: $COMMIT_RANGE"
+        echo "COMMIT_COUNT: $COMMIT_COUNT"
+        echo "Binary ID: ${{ matrix.build_config.binary_id }}"
+        echo "Description: ${{ matrix.build_config.description }}"
+        echo "Configure flags: ${{ matrix.build_config.configure_flags }}"
+        echo "Install deps: ${{ matrix.build_config.install_deps }}"
+        echo "=========================="
         
     - name: Install memory tracker worker
       run: |
@@ -110,6 +119,11 @@ jobs:
         # Install CPython dependencies using their script
         cd cpython
         sudo .github/workflows/posix-deps-apt.sh
+
+        # Install JIT dependencies if needed
+        if [ "${{ matrix.build_config.install_deps }}" = "jit" ]; then
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh ${{ github.event.inputs.llvm || '19' }}
+        fi
         
         # Install Memray dependencies  
         sudo apt-get install -y \
@@ -118,31 +132,33 @@ jobs:
           libunwind-dev \
           liblz4-dev
           
-    - name: Run memory benchmark for commit
+    - name: Run memory benchmark for commit range - ${{ matrix.build_config.description }}
       env:
         MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
       run: |
-        COMMIT="${{ matrix.commit }}"
+        if [ "${{ matrix.build_config.install_deps }}" = "jit" ]; then
+          export PATH="$(llvm-config-${{ github.event.inputs.llvm || '19' }} --bindir):$PATH"
+          export LLVM_VERSION="${{ github.event.inputs.llvm || '19' }}"
+          echo "LLVM Path: $(llvm-config-${{ github.event.inputs.llvm || '19' }} --bindir)"
+          echo "Clang version: $(clang-${{ github.event.inputs.llvm || '19' }} --version || echo 'clang-${{ github.event.inputs.llvm || '19' }} not found')"
+        fi
         
-        # Build command for single commit
-        CMD="memory-tracker benchmark '$COMMIT'"
-        CMD="$CMD --repo-path ./cpython"
-        CMD="$CMD --binary-id '${{ github.event.inputs.binary_id || 'default' }}'"
-        CMD="$CMD --environment-id '${{ github.event.inputs.environment_id || 'gcc-11' }}'"
-        CMD="$CMD --api-base '${{ github.event.inputs.server_url || 'https://memory.python.org' }}'"
-        CMD="$CMD --output-dir ./benchmark_results"
-        CMD="$CMD --force"
-        CMD="$CMD -vv"
-        
-        echo "Running benchmark for commit: $COMMIT"
-        echo "Command: $CMD"
-        eval $CMD
+        # Build command for commit range
+        memory-tracker benchmark "$COMMIT_RANGE" \
+          --repo-path ./cpython \
+          --binary-id "${{ matrix.build_config.binary_id }}" \
+          --environment-id "${{ github.event.inputs.environment_id || 'gh_actions' }}" \
+          --api-base "${{ github.event.inputs.server_url || 'https://memory.python.org' }}" \
+          --output-dir ./benchmark_results \
+          --configure-flags="${{ matrix.build_config.configure_flags }}" \
+          --force \
+          -vv
           
     - name: Upload benchmark results (if failed)
       if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: benchmark-logs-${{ matrix.commit }}
+        name: benchmark-logs-${{ matrix.build_config.binary_id }}
         path: |
           *.log
           ./benchmark_results/
@@ -152,12 +168,12 @@ jobs:
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: benchmark-results-${{ matrix.commit }}
+        name: benchmark-results-${{ matrix.build_config.binary_id }}
         path: ./benchmark_results/
         retention-days: 30
 
   summary:
-    needs: [get-daily-commits, benchmark-commits]
+    needs: benchmark-builds
     if: always()
     runs-on: ubuntu-latest
     
@@ -165,10 +181,5 @@ jobs:
     - name: Print summary
       run: |
         echo "Daily benchmark run completed"
-        echo "Total commits processed: ${{ needs.get-daily-commits.outputs.commit-count }}"
-        
-        if [ "${{ needs.get-daily-commits.outputs.commit-count }}" = "0" ]; then
-          echo "No commits found for the target date"
-        else
-          echo "Benchmark jobs completed with status: ${{ needs.benchmark-commits.result }}"
-        fi
+        echo "Benchmark jobs completed with status: ${{ needs.benchmark-builds.result }}"
+        echo "Binary types benchmarked: default, debug, jit, lto-pgo, nogil"
