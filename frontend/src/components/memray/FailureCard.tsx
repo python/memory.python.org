@@ -55,7 +55,7 @@ export default function FailureCard({
     return (
       <>
         <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex-1">
               <div className="font-medium text-amber-900 dark:text-amber-200">
                 {binary_name} on {environment_name}
@@ -64,15 +64,16 @@ export default function FailureCard({
                 Commit: {commit_sha.substring(0, 8)} • {formatTimestamp(commit_timestamp || failure_timestamp)}
               </div>
             </div>
-            <div className="flex items-center gap-2 ml-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowErrorDialog(true)}
-                className="gap-2"
+                className="gap-2 whitespace-nowrap"
               >
                 <Eye className="w-4 h-4" />
-                View Error
+                <span className="hidden xs:inline">View Error</span>
+                <span className="xs:hidden">View</span>
               </Button>
               {onDelete && id && (
                 <Button
@@ -80,10 +81,11 @@ export default function FailureCard({
                   size="sm"
                   onClick={() => onDelete(id)}
                   disabled={isDeleting}
-                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
                 >
                   <Trash2 className="w-4 h-4" />
-                  {isDeleting ? 'Deleting...' : 'Delete'}
+                  <span className="hidden xs:inline">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+                  <span className="xs:hidden">{isDeleting ? '...' : ''}</span>
                 </Button>
               )}
             </div>
@@ -114,9 +116,9 @@ export default function FailureCard({
 
   return (
     <>
-      <div className="flex items-center justify-between p-3 border rounded-lg">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 border rounded-lg gap-3">
         <div className="flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <code className="text-sm">{commit_sha.substring(0, 8)}</code>
             {showBadges && (
               <>
@@ -139,15 +141,16 @@ export default function FailureCard({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-2 ml-3">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setShowErrorDialog(true)}
-            className="gap-2"
+            className="gap-2 whitespace-nowrap"
           >
             <Eye className="w-4 h-4" />
-            View Error
+            <span className="hidden xs:inline">View Error</span>
+            <span className="xs:hidden">View</span>
           </Button>
           {onDelete && id && (
             <Button
@@ -155,10 +158,11 @@ export default function FailureCard({
               size="sm"
               onClick={() => onDelete(id)}
               disabled={isDeleting}
-              className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
+              className="gap-2 text-red-600 hover:text-red-700 hover:bg-red-50 whitespace-nowrap"
             >
               <Trash2 className="w-4 h-4" />
-              {isDeleting ? 'Deleting...' : 'Delete'}
+              <span className="hidden xs:inline">{isDeleting ? 'Deleting...' : 'Delete'}</span>
+              <span className="xs:hidden">{isDeleting ? '...' : ''}</span>
             </Button>
           )}
         </div>

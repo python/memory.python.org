@@ -198,6 +198,8 @@ class MemrayFailurePublic(BaseModel):
     commit_sha: str
     binary_id: str
     environment_id: str
+    binary_name: str
+    environment_name: str
     error_message: str
     failure_timestamp: datetime
     commit_timestamp: datetime
