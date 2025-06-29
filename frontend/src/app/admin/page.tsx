@@ -14,9 +14,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Shield, LogOut, User } from 'lucide-react';
 import BinariesManager from './components/BinariesManager';
 import EnvironmentsManager from './components/EnvironmentsManager';
-import RunsManager from './components/RunsManager';
 import AdminUsersManager from './components/AdminUsersManager';
 import TokensManager from './components/TokensManager';
+import CommitsManager from './components/CommitsManager';
+import BenchmarkResultsManager from './components/BenchmarkResultsManager';
+import QueryConsole from './components/QueryConsole';
 
 interface AdminUser {
   username: string;
@@ -38,6 +40,14 @@ export default function AdminPage() {
   }, []);
 
   const checkAuth = async () => {
+    // Uncomment to bypass auth for testing
+    // setUser({
+    //   username: 'test_admin',
+    //   name: 'Test Admin',
+    //   avatar_url: 'https://github.com/identicons/test.png'
+    // });
+    // setLoading(false);
+    // return;
     try {
       const response = await fetch(`${API_BASE}/admin/me`, {
         credentials: 'include',
@@ -172,12 +182,14 @@ export default function AdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="binaries" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="binaries">Binaries</TabsTrigger>
             <TabsTrigger value="environments">Environments</TabsTrigger>
-            <TabsTrigger value="runs">Runs</TabsTrigger>
-            <TabsTrigger value="users">Admin Users</TabsTrigger>
-            <TabsTrigger value="tokens">Auth Tokens</TabsTrigger>
+            <TabsTrigger value="commits">Commits</TabsTrigger>
+            <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="query">Query</TabsTrigger>
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="tokens">Tokens</TabsTrigger>
           </TabsList>
 
           <TabsContent value="binaries">
@@ -188,8 +200,16 @@ export default function AdminPage() {
             <EnvironmentsManager />
           </TabsContent>
 
-          <TabsContent value="runs">
-            <RunsManager />
+          <TabsContent value="commits">
+            <CommitsManager />
+          </TabsContent>
+
+          <TabsContent value="results">
+            <BenchmarkResultsManager />
+          </TabsContent>
+
+          <TabsContent value="query">
+            <QueryConsole />
           </TabsContent>
 
           <TabsContent value="users">

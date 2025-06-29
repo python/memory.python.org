@@ -5,9 +5,9 @@ Protected by GitHub OAuth authentication.
 
 import logging
 from datetime import datetime, UTC
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
-from sqlalchemy import select, delete, func
+from sqlalchemy import select, delete, func, text, desc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_database
@@ -25,6 +25,7 @@ from ..models import (
     AdminUser,
     AuthToken,
     BenchmarkResult,
+    Commit,
 )
 from ..schemas import (
     BinaryCreate,
@@ -34,6 +35,7 @@ from ..schemas import (
 )
 from .. import crud
 from pydantic import BaseModel
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -81,6 +83,45 @@ class TokenAnalytics(BaseModel):
     used_tokens: int
     never_used_tokens: int
     recent_active_tokens: int
+
+
+# Pydantic schemas for Commits management
+class CommitUpdate(BaseModel):
+    message: Optional[str] = None
+    author: Optional[str] = None
+    python_major: Optional[int] = None
+    python_minor: Optional[int] = None
+    python_patch: Optional[int] = None
+
+
+class CommitResponse(BaseModel):
+    sha: str
+    timestamp: datetime
+    message: str
+    author: str
+    python_major: int
+    python_minor: int
+    python_patch: int
+    run_count: Optional[int] = None
+
+
+# Pydantic schemas for BenchmarkResults management
+class BenchmarkResultUpdate(BaseModel):
+    high_watermark_bytes: Optional[int] = None
+    total_allocated_bytes: Optional[int] = None
+    allocation_histogram: Optional[List[List[int]]] = None
+    top_allocating_functions: Optional[List[Dict[str, Any]]] = None
+
+
+class BenchmarkResultResponse(BaseModel):
+    id: str
+    run_id: str
+    benchmark_name: str
+    high_watermark_bytes: int
+    total_allocated_bytes: int
+    allocation_histogram: List[List[int]]
+    top_allocating_functions: List[Dict[str, Any]]
+    has_flamegraph: bool
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -363,101 +404,6 @@ async def delete_environment(
     return {"success": True}
 
 
-# Runs Management
-@router.get("/runs")
-async def list_runs(
-    admin_session: AdminSession = Depends(require_admin_auth),
-    db: AsyncSession = Depends(get_database),
-    skip: int = 0,
-    limit: int = 50,  # Reduced default limit for performance
-    commit_sha: Optional[str] = None,
-    binary_id: Optional[str] = None,
-    environment_id: Optional[str] = None,
-):
-    """List runs with their commit information and pagination."""
-    # Limit maximum page size to prevent performance issues
-    limit = min(limit, 100)
-
-    # Get runs with commit information
-    runs_with_commits = await crud.get_runs_with_commits(
-        db,
-        commit_sha=commit_sha,
-        binary_id=binary_id,
-        environment_id=environment_id,
-        skip=skip,
-        limit=limit,
-    )
-
-    # Get total count for pagination
-    total_count = await crud.count_runs(
-        db,
-        commit_sha=commit_sha,
-        binary_id=binary_id,
-        environment_id=environment_id,
-    )
-
-    # Format the response to include both run and commit data
-    formatted_runs = []
-    for run, commit in runs_with_commits:
-        formatted_runs.append(
-            {
-                "run_id": run.run_id,
-                "commit_sha": run.commit_sha,
-                "binary_id": run.binary_id,
-                "environment_id": run.environment_id,
-                "python_major": run.python_major,
-                "python_minor": run.python_minor,
-                "python_patch": run.python_patch,
-                "timestamp": run.timestamp,
-                "commit": {
-                    "sha": commit.sha,
-                    "timestamp": commit.timestamp,
-                    "message": commit.message,
-                    "author": commit.author,
-                    "python_major": commit.python_major,
-                    "python_minor": commit.python_minor,
-                    "python_patch": commit.python_patch,
-                },
-            }
-        )
-
-    return {
-        "runs": formatted_runs,
-        "pagination": {
-            "skip": skip,
-            "limit": limit,
-            "total": total_count,
-            "has_more": skip + len(formatted_runs) < total_count,
-        },
-    }
-
-
-@router.delete("/runs/{run_id}")
-async def delete_run(
-    run_id: str,
-    admin_session: AdminSession = Depends(require_admin_auth),
-    db: AsyncSession = Depends(get_database),
-):
-    """Delete a run and its associated benchmark results."""
-    # Check if run exists
-    result = await db.execute(select(Run).where(Run.run_id == run_id))
-    run = result.scalars().first()
-
-    if not run:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Run not found",
-        )
-
-    # First delete all benchmark results for this run
-    await db.execute(delete(BenchmarkResult).where(BenchmarkResult.run_id == run_id))
-
-    # Then delete the run
-    await db.execute(delete(Run).where(Run.run_id == run_id))
-    await db.commit()
-
-    return {"success": True}
-
 
 # Admin Users Management
 @router.get("/users", response_model=List[AdminUserResponse])
@@ -698,3 +644,576 @@ async def get_token_analytics(
         never_used_tokens=total_tokens - used_tokens,
         recent_active_tokens=recent_active,
     )
+
+
+# Commits Management
+@router.get("/commits", response_model=List[CommitResponse])
+async def list_commits(
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+    skip: int = 0,
+    limit: int = 50,
+    sha: Optional[str] = None,
+    author: Optional[str] = None,
+    python_version: Optional[str] = None,
+):
+    """List commits with filtering and pagination."""
+    limit = min(limit, 100)  # Prevent excessive data loading
+    
+    query = select(Commit, func.count(Run.run_id).label("run_count")).outerjoin(Run).group_by(Commit.sha)
+    
+    if sha:
+        query = query.where(Commit.sha.ilike(f"{sha}%"))
+    if author:
+        query = query.where(Commit.author.ilike(f"%{author}%"))
+    if python_version:
+        try:
+            major, minor = python_version.split(".")[:2]
+            query = query.where(
+                and_(
+                    Commit.python_major == int(major),
+                    Commit.python_minor == int(minor)
+                )
+            )
+        except (ValueError, IndexError):
+            pass  # Invalid version format, ignore filter
+    
+    query = query.order_by(desc(Commit.timestamp)).offset(skip).limit(limit)
+    
+    result = await db.execute(query)
+    commits_with_counts = result.all()
+    
+    commit_responses = []
+    for commit, run_count in commits_with_counts:
+        commit_responses.append(
+            CommitResponse(
+                sha=commit.sha,
+                timestamp=commit.timestamp,
+                message=commit.message,
+                author=commit.author,
+                python_major=commit.python_major,
+                python_minor=commit.python_minor,
+                python_patch=commit.python_patch,
+                run_count=run_count,
+            )
+        )
+    
+    return commit_responses
+
+
+@router.get("/commits/{sha}", response_model=CommitResponse)
+async def get_commit(
+    sha: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get a specific commit by SHA."""
+    result = await db.execute(
+        select(Commit, func.count(Run.run_id).label("run_count"))
+        .outerjoin(Run)
+        .where(Commit.sha == sha)
+        .group_by(Commit.sha)
+    )
+    commit_data = result.first()
+    
+    if not commit_data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Commit not found",
+        )
+    
+    commit, run_count = commit_data
+    return CommitResponse(
+        sha=commit.sha,
+        timestamp=commit.timestamp,
+        message=commit.message,
+        author=commit.author,
+        python_major=commit.python_major,
+        python_minor=commit.python_minor,
+        python_patch=commit.python_patch,
+        run_count=run_count,
+    )
+
+
+@router.put("/commits/{sha}", response_model=CommitResponse)
+async def update_commit(
+    sha: str,
+    commit_update: CommitUpdate,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Update a commit's metadata."""
+    result = await db.execute(select(Commit).where(Commit.sha == sha))
+    commit = result.scalars().first()
+    
+    if not commit:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Commit not found",
+        )
+    
+    # Update fields if provided
+    if commit_update.message is not None:
+        commit.message = commit_update.message
+    if commit_update.author is not None:
+        commit.author = commit_update.author
+    if commit_update.python_major is not None:
+        commit.python_major = commit_update.python_major
+    if commit_update.python_minor is not None:
+        commit.python_minor = commit_update.python_minor
+    if commit_update.python_patch is not None:
+        commit.python_patch = commit_update.python_patch
+    
+    await db.commit()
+    await db.refresh(commit)
+    
+    # Get run count
+    run_count_result = await db.execute(
+        select(func.count(Run.run_id)).where(Run.commit_sha == sha)
+    )
+    run_count = run_count_result.scalar() or 0
+    
+    return CommitResponse(
+        sha=commit.sha,
+        timestamp=commit.timestamp,
+        message=commit.message,
+        author=commit.author,
+        python_major=commit.python_major,
+        python_minor=commit.python_minor,
+        python_patch=commit.python_patch,
+        run_count=run_count,
+    )
+
+
+@router.delete("/commits/{sha}")
+async def delete_commit(
+    sha: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Delete a commit and all associated runs and benchmark results."""
+    result = await db.execute(select(Commit).where(Commit.sha == sha))
+    commit = result.scalars().first()
+    
+    if not commit:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Commit not found",
+        )
+    
+    # Get all runs for this commit
+    runs_result = await db.execute(select(Run.run_id).where(Run.commit_sha == sha))
+    run_ids = [row[0] for row in runs_result.fetchall()]
+    
+    # Delete all benchmark results for runs associated with this commit
+    if run_ids:
+        await db.execute(
+            delete(BenchmarkResult).where(BenchmarkResult.run_id.in_(run_ids))
+        )
+    
+    # Delete all runs for this commit
+    await db.execute(delete(Run).where(Run.commit_sha == sha))
+    
+    # Finally delete the commit
+    await db.execute(delete(Commit).where(Commit.sha == sha))
+    await db.commit()
+    
+    return {"success": True}
+
+
+# BenchmarkResults Management
+@router.get("/benchmark-results", response_model=List[BenchmarkResultResponse])
+async def list_benchmark_results(
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+    skip: int = 0,
+    limit: int = 50,
+    run_id: Optional[str] = None,
+    benchmark_name: Optional[str] = None,
+    min_memory: Optional[int] = None,
+    max_memory: Optional[int] = None,
+):
+    """List benchmark results with filtering and pagination."""
+    limit = min(limit, 100)  # Prevent excessive data loading
+    
+    query = select(BenchmarkResult)
+    
+    if run_id:
+        query = query.where(BenchmarkResult.run_id.ilike(f"{run_id}%"))
+    if benchmark_name:
+        query = query.where(BenchmarkResult.benchmark_name.ilike(f"%{benchmark_name}%"))
+    if min_memory is not None:
+        query = query.where(BenchmarkResult.high_watermark_bytes >= min_memory)
+    if max_memory is not None:
+        query = query.where(BenchmarkResult.high_watermark_bytes <= max_memory)
+    
+    query = query.order_by(desc(BenchmarkResult.id)).offset(skip).limit(limit)
+    
+    result = await db.execute(query)
+    benchmark_results = result.scalars().all()
+    
+    result_responses = []
+    for br in benchmark_results:
+        result_responses.append(
+            BenchmarkResultResponse(
+                id=br.id,
+                run_id=br.run_id,
+                benchmark_name=br.benchmark_name,
+                high_watermark_bytes=br.high_watermark_bytes,
+                total_allocated_bytes=br.total_allocated_bytes,
+                allocation_histogram=br.allocation_histogram,
+                top_allocating_functions=br.top_allocating_functions,
+                has_flamegraph=br.flamegraph_html is not None,
+            )
+        )
+    
+    return result_responses
+
+
+@router.get("/benchmark-results/{result_id}", response_model=BenchmarkResultResponse)
+async def get_benchmark_result(
+    result_id: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get a specific benchmark result by ID."""
+    result = await db.execute(
+        select(BenchmarkResult).where(BenchmarkResult.id == result_id)
+    )
+    benchmark_result = result.scalars().first()
+    
+    if not benchmark_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Benchmark result not found",
+        )
+    
+    return BenchmarkResultResponse(
+        id=benchmark_result.id,
+        run_id=benchmark_result.run_id,
+        benchmark_name=benchmark_result.benchmark_name,
+        high_watermark_bytes=benchmark_result.high_watermark_bytes,
+        total_allocated_bytes=benchmark_result.total_allocated_bytes,
+        allocation_histogram=benchmark_result.allocation_histogram,
+        top_allocating_functions=benchmark_result.top_allocating_functions,
+        has_flamegraph=benchmark_result.flamegraph_html is not None,
+    )
+
+
+@router.get("/benchmark-results/{result_id}/flamegraph")
+async def get_benchmark_result_flamegraph(
+    result_id: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get the flamegraph HTML for a benchmark result."""
+    result = await db.execute(
+        select(BenchmarkResult.flamegraph_html).where(BenchmarkResult.id == result_id)
+    )
+    flamegraph_html = result.scalar()
+    
+    if flamegraph_html is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Flamegraph not found for this benchmark result",
+        )
+    
+    return {"flamegraph_html": flamegraph_html}
+
+
+@router.put("/benchmark-results/{result_id}", response_model=BenchmarkResultResponse)
+async def update_benchmark_result(
+    result_id: str,
+    result_update: BenchmarkResultUpdate,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Update a benchmark result's data."""
+    result = await db.execute(
+        select(BenchmarkResult).where(BenchmarkResult.id == result_id)
+    )
+    benchmark_result = result.scalars().first()
+    
+    if not benchmark_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Benchmark result not found",
+        )
+    
+    # Update fields if provided
+    if result_update.high_watermark_bytes is not None:
+        benchmark_result.high_watermark_bytes = result_update.high_watermark_bytes
+    if result_update.total_allocated_bytes is not None:
+        benchmark_result.total_allocated_bytes = result_update.total_allocated_bytes
+    if result_update.allocation_histogram is not None:
+        benchmark_result.allocation_histogram = result_update.allocation_histogram
+    if result_update.top_allocating_functions is not None:
+        benchmark_result.top_allocating_functions = result_update.top_allocating_functions
+    
+    await db.commit()
+    await db.refresh(benchmark_result)
+    
+    return BenchmarkResultResponse(
+        id=benchmark_result.id,
+        run_id=benchmark_result.run_id,
+        benchmark_name=benchmark_result.benchmark_name,
+        high_watermark_bytes=benchmark_result.high_watermark_bytes,
+        total_allocated_bytes=benchmark_result.total_allocated_bytes,
+        allocation_histogram=benchmark_result.allocation_histogram,
+        top_allocating_functions=benchmark_result.top_allocating_functions,
+        has_flamegraph=benchmark_result.flamegraph_html is not None,
+    )
+
+
+@router.delete("/benchmark-results/{result_id}")
+async def delete_benchmark_result(
+    result_id: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Delete a specific benchmark result."""
+    result = await db.execute(
+        select(BenchmarkResult).where(BenchmarkResult.id == result_id)
+    )
+    benchmark_result = result.scalars().first()
+    
+    if not benchmark_result:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Benchmark result not found",
+        )
+    
+    await db.execute(delete(BenchmarkResult).where(BenchmarkResult.id == result_id))
+    await db.commit()
+    
+    return {"success": True}
+
+
+@router.post("/benchmark-results/bulk-delete")
+async def bulk_delete_benchmark_results(
+    result_ids: List[str],
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Bulk delete benchmark results by IDs."""
+    if not result_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No result IDs provided",
+        )
+    
+    if len(result_ids) > 100:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete more than 100 results at once",
+        )
+    
+    deleted_count = await db.execute(
+        delete(BenchmarkResult).where(BenchmarkResult.id.in_(result_ids))
+    )
+    await db.commit()
+    
+    return {
+        "success": True,
+        "deleted_count": deleted_count.rowcount,
+        "requested_count": len(result_ids),
+    }
+
+
+# Query Console - for advanced database operations
+class QueryRequest(BaseModel):
+    query: str
+    read_only: bool = True
+
+
+class QueryResult(BaseModel):
+    success: bool
+    rows: Optional[List[Dict[str, Any]]] = None
+    affected_rows: Optional[int] = None
+    error: Optional[str] = None
+    execution_time_ms: Optional[float] = None
+    column_names: Optional[List[str]] = None
+
+
+@router.post("/query", response_model=QueryResult)
+async def execute_query(
+    query_request: QueryRequest,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Execute a custom SQL query with safety checks."""
+    import time
+    
+    query = query_request.query.strip()
+    
+    if not query:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query cannot be empty",
+        )
+    
+    # Simple read-only check
+    query_upper = query.upper()
+    is_write_operation = any(keyword in query_upper for keyword in ["INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", "CREATE"])
+    
+    # Block write operations in read-only mode
+    if query_request.read_only and is_write_operation:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Write operations not allowed in read-only mode",
+        )
+    
+    # Limit query length
+    if len(query) > 10000:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Query too long (max 10,000 characters)",
+        )
+    
+    # Add LIMIT to SELECT queries without one (for safety)
+    if query_upper.startswith("SELECT") and "LIMIT" not in query_upper:
+        # Remove trailing semicolon if present, then add LIMIT
+        query = query.rstrip().rstrip(';')
+        query += " LIMIT 1000"
+    
+    start_time = time.time()
+    
+    try:
+        # Execute the query
+        result = await db.execute(text(query))
+        
+        if query_upper.startswith("SELECT") or query_upper.startswith("WITH"):
+            # For SELECT queries, fetch all results
+            rows = result.fetchall()
+            
+            # Convert to list of dictionaries
+            if rows:
+                column_names = list(result.keys())
+                rows_data = [dict(zip(column_names, row)) for row in rows]
+            else:
+                column_names = []
+                rows_data = []
+            
+            execution_time = (time.time() - start_time) * 1000
+            
+            return QueryResult(
+                success=True,
+                rows=rows_data,
+                column_names=column_names,
+                execution_time_ms=round(execution_time, 2),
+            )
+        else:
+            # For non-SELECT queries, commit and return affected rows
+            await db.commit()
+            execution_time = (time.time() - start_time) * 1000
+            
+            return QueryResult(
+                success=True,
+                affected_rows=result.rowcount,
+                execution_time_ms=round(execution_time, 2),
+            )
+            
+    except Exception as e:
+        await db.rollback()
+        execution_time = (time.time() - start_time) * 1000
+        
+        logger.error(f"Query execution failed: {e}", extra={
+            "query": query,
+            "admin_user": admin_session.github_username,
+        })
+        
+        return QueryResult(
+            success=False,
+            error=str(e),
+            execution_time_ms=round(execution_time, 2),
+        )
+
+
+@router.get("/query/tables")
+async def list_database_tables(
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """List all tables in the database."""
+    try:
+        # This query works for most SQL databases
+        result = await db.execute(text("""
+            SELECT table_name 
+            FROM information_schema.tables 
+            WHERE table_schema = 'public' OR table_schema = 'main'
+            ORDER BY table_name
+        """))
+        
+        tables = [row[0] for row in result.fetchall()]
+        return {"tables": tables}
+        
+    except Exception:
+        # Fallback for SQLite or other databases
+        try:
+            result = await db.execute(text("""
+                SELECT name FROM sqlite_master 
+                WHERE type='table' 
+                ORDER BY name
+            """))
+            tables = [row[0] for row in result.fetchall()]
+            return {"tables": tables}
+        except Exception as e:
+            logger.error(f"Failed to list tables: {e}")
+            return {"tables": [], "error": str(e)}
+
+
+@router.get("/query/schema/{table_name}")
+async def get_table_schema(
+    table_name: str,
+    admin_session: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get the schema for a specific table."""
+    try:
+        # Prevent SQL injection by validating table name
+        if not re.match(r'^[a-zA-Z_][a-zA-Z0-9_]*$', table_name):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid table name",
+            )
+        
+        # Get column information
+        result = await db.execute(text(f"""
+            SELECT column_name, data_type, is_nullable, column_default
+            FROM information_schema.columns
+            WHERE table_name = '{table_name}'
+            ORDER BY ordinal_position
+        """))
+        
+        columns = []
+        for row in result.fetchall():
+            columns.append({
+                "name": row[0],
+                "type": row[1],
+                "nullable": row[2] == "YES",
+                "default": row[3],
+            })
+        
+        return {"table_name": table_name, "columns": columns}
+        
+    except Exception:
+        # Fallback for SQLite
+        try:
+            result = await db.execute(text(f"PRAGMA table_info({table_name})"))
+            columns = []
+            for row in result.fetchall():
+                columns.append({
+                    "name": row[1],
+                    "type": row[2],
+                    "nullable": not bool(row[3]),
+                    "default": row[4],
+                })
+            
+            return {"table_name": table_name, "columns": columns}
+            
+        except Exception as e:
+            logger.error(f"Failed to get schema for table {table_name}: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Table not found or error accessing schema: {str(e)}",
+            )

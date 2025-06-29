@@ -203,55 +203,6 @@ async def get_runs(
     return result.scalars().all()
 
 
-async def get_runs_with_commits(
-    db: AsyncSession,
-    commit_sha: Optional[str] = None,
-    binary_id: Optional[str] = None,
-    environment_id: Optional[str] = None,
-    skip: int = 0,
-    limit: int = 100,
-) -> List[tuple]:
-    """Get runs with their associated commit information."""
-    query = (
-        select(models.Run, models.Commit)
-        .join(models.Commit, models.Run.commit_sha == models.Commit.sha)
-        .order_by(desc(models.Run.timestamp))
-    )
-
-    if commit_sha:
-        # Use prefix matching (starts with) for commit SHA
-        query = query.where(models.Run.commit_sha.ilike(f"{commit_sha}%"))
-    if binary_id:
-        query = query.where(models.Run.binary_id == binary_id)
-    if environment_id:
-        query = query.where(models.Run.environment_id == environment_id)
-
-    query = query.offset(skip).limit(limit)
-    result = await db.execute(query)
-    return result.all()
-
-
-async def count_runs(
-    db: AsyncSession,
-    commit_sha: Optional[str] = None,
-    binary_id: Optional[str] = None,
-    environment_id: Optional[str] = None,
-) -> int:
-    """Count total runs matching the filter criteria."""
-    query = select(func.count(models.Run.run_id))
-
-    if commit_sha:
-        # Use prefix matching (starts with) for commit SHA
-        query = query.where(models.Run.commit_sha.ilike(f"{commit_sha}%"))
-    if binary_id:
-        query = query.where(models.Run.binary_id == binary_id)
-    if environment_id:
-        query = query.where(models.Run.environment_id == environment_id)
-
-    result = await db.execute(query)
-    return result.scalar() or 0
-
-
 async def create_run(db: AsyncSession, run: schemas.RunCreate) -> models.Run:
     # Convert timezone-aware timestamp to timezone-naive for database storage
     timestamp = run.timestamp
