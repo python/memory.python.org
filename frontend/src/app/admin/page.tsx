@@ -19,6 +19,7 @@ import TokensManager from './components/TokensManager';
 import CommitsManager from './components/CommitsManager';
 import BenchmarkResultsManager from './components/BenchmarkResultsManager';
 import QueryConsole from './components/QueryConsole';
+import MemrayFailuresManager from './components/MemrayFailuresManager';
 
 interface AdminUser {
   username: string;
@@ -182,11 +183,12 @@ export default function AdminPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs defaultValue="binaries" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="binaries">Binaries</TabsTrigger>
             <TabsTrigger value="environments">Environments</TabsTrigger>
             <TabsTrigger value="commits">Commits</TabsTrigger>
             <TabsTrigger value="results">Results</TabsTrigger>
+            <TabsTrigger value="memray">Memray</TabsTrigger>
             <TabsTrigger value="query">Query</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="tokens">Tokens</TabsTrigger>
@@ -206,6 +208,10 @@ export default function AdminPage() {
 
           <TabsContent value="results">
             <BenchmarkResultsManager />
+          </TabsContent>
+
+          <TabsContent value="memray">
+            <MemrayFailuresManager />
           </TabsContent>
 
           <TabsContent value="query">

@@ -767,7 +767,7 @@ LIMIT 10;`
                   <Checkbox
                     id="read-only"
                     checked={readOnly}
-                    onCheckedChange={setReadOnly}
+                    onCheckedChange={(checked) => setReadOnly(checked === true)}
                   />
                   <Label htmlFor="read-only">Read-only mode</Label>
                 </div>

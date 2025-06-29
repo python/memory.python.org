@@ -387,3 +387,67 @@ def upload_results_to_server(
         logger.error(f"Unexpected error during upload: {e}")
         logger.info(f"Results are still saved locally in: {output_dir}")
         raise ValueError(f"Upload failed: {e}")
+
+
+def report_memray_failure(
+    commit_sha: str,
+    commit_timestamp: Any,
+    binary_id: str,
+    environment_id: str,
+    error_message: str,
+    auth_token: str = None,
+    server_url: str = "http://localhost:8000",
+) -> None:
+    """Report a memray build failure to the server."""
+    logger.info(f"Reporting memray failure for commit {commit_sha[:8]} to {server_url}")
+    
+    # Prepare failure data
+    failure_data = {
+        "commit_sha": commit_sha,
+        "commit_timestamp": commit_timestamp.isoformat() if hasattr(commit_timestamp, 'isoformat') else str(commit_timestamp),
+        "binary_id": binary_id,
+        "environment_id": environment_id,
+        "error_message": error_message,
+    }
+    
+    # Prepare headers with authentication
+    headers = {"Content-Type": "application/json"}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
+        logger.debug("Using authentication token for failure report")
+    else:
+        logger.warning("No authentication token provided - failure report may fail")
+    
+    # Report to server
+    try:
+        response = requests.post(
+            f"{server_url}/api/report-memray-failure",
+            json=failure_data,
+            headers=headers,
+            timeout=10,
+        )
+        response.raise_for_status()
+        
+        logger.info(f"Successfully reported memray failure for commit {commit_sha[:8]}")
+        
+    except requests.exceptions.HTTPError as e:
+        error_detail = "Unknown error"
+        try:
+            if e.response.headers.get("content-type", "").startswith("application/json"):
+                error_json = e.response.json()
+                error_detail = error_json.get("detail", str(e))
+            else:
+                error_detail = e.response.text or str(e)
+        except Exception:
+            error_detail = str(e)
+        
+        logger.error(f"Server rejected failure report (HTTP {e.response.status_code}): {error_detail}")
+        raise ValueError(f"Failure report rejected: {error_detail}")
+        
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Failed to connect to server for failure report: {e}")
+        raise ValueError(f"Connection failed: {e}")
+        
+    except Exception as e:
+        logger.error(f"Unexpected error during failure report: {e}")
+        raise ValueError(f"Failure report failed: {e}")

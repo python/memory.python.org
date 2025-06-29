@@ -22,9 +22,9 @@ from ..models import (
     Binary,
     Environment,
     Run,
-    AdminUser,
     AuthToken,
     BenchmarkResult,
+    MemrayBuildFailure,
     Commit,
 )
 from ..schemas import (
@@ -32,6 +32,7 @@ from ..schemas import (
     Binary as BinarySchema,
     EnvironmentCreate,
     Environment as EnvironmentSchema,
+    MemrayFailurePublic, 
 )
 from .. import crud
 from pydantic import BaseModel
@@ -122,6 +123,7 @@ class BenchmarkResultResponse(BaseModel):
     allocation_histogram: List[List[int]]
     top_allocating_functions: List[Dict[str, Any]]
     has_flamegraph: bool
+
 
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -620,7 +622,7 @@ async def get_token_analytics(
     total_tokens = total_result.scalar()
 
     active_result = await db.execute(
-        select(func.count(AuthToken.id)).where(AuthToken.is_active == True)
+        select(func.count(AuthToken.id)).where(AuthToken.is_active)
     )
     active_tokens = active_result.scalar()
 
@@ -1217,3 +1219,102 @@ async def get_table_schema(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Table not found or error accessing schema: {str(e)}",
             )
+
+
+
+
+@router.get("/memray-failures", response_model=List[MemrayFailurePublic])
+async def get_memray_failures(
+    current_user: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get all memray build failures."""
+    result = await db.execute(
+        select(
+            MemrayBuildFailure.id,
+            MemrayBuildFailure.commit_sha,
+            MemrayBuildFailure.binary_id,
+            MemrayBuildFailure.environment_id,
+            Binary.name.label("binary_name"),
+            Environment.name.label("environment_name"),
+            MemrayBuildFailure.error_message,
+            MemrayBuildFailure.failure_timestamp,
+            MemrayBuildFailure.commit_timestamp,
+        )
+        .join(Binary)
+        .join(Environment)
+        .order_by(desc(MemrayBuildFailure.failure_timestamp))
+    )
+    failures = result.fetchall()
+    
+    return [
+        {
+            "id": failure.id,
+            "commit_sha": failure.commit_sha,
+            "binary_id": failure.binary_id,
+            "environment_id": failure.environment_id,
+            "binary_name": failure.binary_name,
+            "environment_name": failure.environment_name,
+            "error_message": failure.error_message,
+            "failure_timestamp": failure.failure_timestamp,
+            "commit_timestamp": failure.commit_timestamp,
+        }
+        for failure in failures
+    ]
+
+
+@router.delete("/memray-failures/{failure_id}")
+async def delete_memray_failure(
+    failure_id: int,
+    current_user: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Delete a memray build failure record."""
+    result = await db.execute(
+        select(MemrayBuildFailure).where(MemrayBuildFailure.id == failure_id)
+    )
+    failure = result.scalars().first()
+    
+    if not failure:
+        raise HTTPException(status_code=404, detail="Memray failure not found")
+    
+    await db.delete(failure)
+    await db.commit()
+    
+    return {"message": "Memray failure deleted successfully"}
+
+
+@router.get("/memray-failures/summary")
+async def get_memray_failures_summary(
+    current_user: AdminSession = Depends(require_admin_auth),
+    db: AsyncSession = Depends(get_database),
+):
+    """Get summary of current memray failures by environment."""
+    result = await db.execute(
+        select(
+            MemrayBuildFailure.binary_id,
+            MemrayBuildFailure.environment_id,
+            Binary.name.label("binary_name"),
+            Environment.name.label("environment_name"),
+            MemrayBuildFailure.commit_sha,
+            MemrayBuildFailure.failure_timestamp,
+            MemrayBuildFailure.commit_timestamp,
+        )
+        .join(Binary)
+        .join(Environment)
+        .order_by(desc(MemrayBuildFailure.failure_timestamp))
+    )
+    failures = result.fetchall()
+    
+    return [
+        {
+            "binary_id": failure.binary_id,
+            "binary_name": failure.binary_name,
+            "environment_id": failure.environment_id,
+            "environment_name": failure.environment_name,
+            "commit_sha": failure.commit_sha,
+            "failure_timestamp": failure.failure_timestamp,
+            "commit_timestamp": failure.commit_timestamp,
+        }
+        for failure in failures
+    ]

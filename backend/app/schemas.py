@@ -183,3 +183,24 @@ class AdminUserPublic(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class MemrayFailureReport(BaseModel):
+    commit_sha: str
+    commit_timestamp: datetime
+    binary_id: str
+    environment_id: str
+    error_message: str
+
+
+class MemrayFailurePublic(BaseModel):
+    id: int
+    commit_sha: str
+    binary_id: str
+    environment_id: str
+    error_message: str
+    failure_timestamp: datetime
+    commit_timestamp: datetime
+
+    class Config:
+        from_attributes = True

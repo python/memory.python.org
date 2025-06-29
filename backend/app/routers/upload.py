@@ -2,13 +2,13 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete, desc, func, update, and_
+from sqlalchemy import select, desc, func, update, and_
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import logging
 
 from .. import schemas, crud, models
-from ..database import get_database, transaction_scope
+from ..database import get_database
 from ..auth import get_current_token
 
 router = APIRouter(prefix="/api", tags=["upload"])
@@ -75,7 +75,7 @@ async def cleanup_old_flamegraphs_if_needed(
     )
 
     try:
-        result = await db.execute(cleanup_query)
+        await db.execute(cleanup_query)
         await db.commit()
 
         verify_result = await db.execute(count_query)
@@ -261,7 +261,7 @@ async def upload_worker_run(
     )
 
     try:
-        new_run = await crud.create_run(db, run_data)
+        await crud.create_run(db, run_data)
         logger.info(f"Successfully created run record: {run_id}")
 
         # Create benchmark results
@@ -355,3 +355,122 @@ async def upload_worker_run(
         raise HTTPException(
             status_code=500, detail=f"Failed to upload worker run: {str(e)}"
         )
+
+
+@router.post("/report-memray-failure", response_model=dict)
+async def report_memray_failure(
+    failure_data: schemas.MemrayFailureReport,
+    db: AsyncSession = Depends(get_database),
+    current_token: models.AuthToken = Depends(get_current_token),
+):
+    """Report a memray build failure for a specific commit and environment."""
+    logger = logging.getLogger(__name__)
+    
+    logger.info(
+        f"Authenticated memray failure report from token '{current_token.name}' for commit {failure_data.commit_sha[:8]}, "
+        f"binary_id='{failure_data.binary_id}', environment_id='{failure_data.environment_id}'"
+    )
+    
+    # Validate binary exists
+    binary = await crud.get_binary_by_id(db, binary_id=failure_data.binary_id)
+    if not binary:
+        logger.error(f"Memray failure report failed: Binary '{failure_data.binary_id}' not found")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Binary '{failure_data.binary_id}' not found."
+        )
+    
+    # Validate environment exists
+    environment = await crud.get_environment_by_id(db, environment_id=failure_data.environment_id)
+    if not environment:
+        logger.error(f"Memray failure report failed: Environment '{failure_data.environment_id}' not found")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Environment '{failure_data.environment_id}' not found."
+        )
+    
+    # Create or get commit
+    commit = await crud.get_commit_by_sha(db, sha=failure_data.commit_sha)
+    if not commit:
+        logger.info(f"Commit {failure_data.commit_sha[:8]} not found, creating new commit record")
+        # Create minimal commit record - we'll update it with full metadata later if needed
+        commit_data = schemas.CommitCreate(
+            sha=failure_data.commit_sha,
+            timestamp=failure_data.commit_timestamp,
+            message="Commit with memray build failure",
+            author="Unknown",
+            python_version=schemas.PythonVersion(major=3, minor=12, patch=0)  # Default values
+        )
+        try:
+            commit = await crud.create_commit(db, commit_data)
+            logger.info(f"Successfully created minimal commit record for {failure_data.commit_sha[:8]}")
+        except Exception as e:
+            logger.error(f"Failed to create commit record for {failure_data.commit_sha[:8]}: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to create commit record: {str(e)}"
+            )
+    
+    # Check if this failure is newer than any existing failure for this binary+environment
+    existing_failure = await db.execute(
+        select(models.MemrayBuildFailure)
+        .where(
+            models.MemrayBuildFailure.binary_id == failure_data.binary_id,
+            models.MemrayBuildFailure.environment_id == failure_data.environment_id
+        )
+    )
+    existing_failure = existing_failure.scalars().first()
+    
+    if existing_failure:
+        # Check if the new failure is from a newer commit
+        if failure_data.commit_timestamp <= existing_failure.commit_timestamp:
+            logger.info(
+                f"Ignoring memray failure for {failure_data.commit_sha[:8]} as it's not newer than existing failure"
+            )
+            return {
+                "message": "Memray failure ignored (not newer than existing failure)",
+                "commit_sha": failure_data.commit_sha,
+                "binary_id": failure_data.binary_id,
+                "environment_id": failure_data.environment_id,
+            }
+        
+        # Update existing failure with newer information
+        existing_failure.commit_sha = failure_data.commit_sha
+        existing_failure.error_message = failure_data.error_message
+        existing_failure.failure_timestamp = datetime.now()
+        existing_failure.commit_timestamp = failure_data.commit_timestamp
+        
+        try:
+            await db.commit()
+            logger.info(f"Updated existing memray failure record for binary '{failure_data.binary_id}', environment '{failure_data.environment_id}'")
+        except Exception as e:
+            logger.error(f"Failed to update memray failure record: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to update memray failure record: {str(e)}"
+            )
+    else:
+        # Create new failure record
+        failure_record = models.MemrayBuildFailure(
+            commit_sha=failure_data.commit_sha,
+            binary_id=failure_data.binary_id,
+            environment_id=failure_data.environment_id,
+            error_message=failure_data.error_message,
+            failure_timestamp=datetime.now(),
+            commit_timestamp=failure_data.commit_timestamp
+        )
+        
+        try:
+            db.add(failure_record)
+            await db.commit()
+            logger.info(f"Created new memray failure record for commit {failure_data.commit_sha[:8]}")
+        except Exception as e:
+            logger.error(f"Failed to create memray failure record: {e}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to create memray failure record: {str(e)}"
+            )
+    
+    return {
+        "message": "Memray failure reported successfully",
+        "commit_sha": failure_data.commit_sha,
+        "binary_id": failure_data.binary_id,
+        "environment_id": failure_data.environment_id,
+    }

@@ -26,7 +26,7 @@ def process_commits(
 ) -> Optional[str]:
     """Process commits using local checkout mode."""
     try:
-        repo = git.Repo(repo_path)
+        git.Repo(repo_path)
 
         # Process each commit
         for commit in commits:
@@ -208,20 +208,48 @@ def process_commits(
                 ]
                 logger.debug(f"Pip command: {' '.join(pip_cmd)}")
 
-                result = subprocess.run(pip_cmd, check=True, capture_output=verbose < 3)
-                if verbose >= 3:
-                    if result.stdout:
-                        print(
-                            result.stdout.decode()
-                            if isinstance(result.stdout, bytes)
-                            else result.stdout
+                try:
+                    result = subprocess.run(pip_cmd, check=True, capture_output=True)
+                    if verbose >= 3:
+                        if result.stdout:
+                            print(
+                                result.stdout.decode()
+                                if isinstance(result.stdout, bytes)
+                                else result.stdout
+                            )
+                        if result.stderr:
+                            print(
+                                result.stderr.decode()
+                                if isinstance(result.stderr, bytes)
+                                else result.stderr
+                            )
+                except subprocess.CalledProcessError as e:
+                    # Memray installation failed - report to backend
+                    error_msg = f"Failed to install memray: {e}"
+                    if e.stdout:
+                        error_msg += f"\nstdout: {e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout}"
+                    if e.stderr:
+                        error_msg += f"\nstderr: {e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr}"
+                    
+                    logger.error(f"Memray installation failed for commit {commit.hexsha[:8]}: {error_msg}")
+                    
+                    # Report failure to backend
+                    from .benchmarks import report_memray_failure
+                    try:
+                        report_memray_failure(
+                            commit_sha=commit.hexsha,
+                            commit_timestamp=commit.authored_datetime.replace(tzinfo=None),
+                            binary_id=binary_id,
+                            environment_id=environment_id,
+                            error_message=error_msg,
+                            auth_token=auth_token,
+                            server_url=api_base,
                         )
-                    if result.stderr:
-                        print(
-                            result.stderr.decode()
-                            if isinstance(result.stderr, bytes)
-                            else result.stderr
-                        )
+                    except Exception as report_error:
+                        logger.error(f"Failed to report memray failure to backend: {report_error}")
+                    
+                    # Skip to next commit
+                    continue
 
                 # Run benchmarks
                 logger.info(f"Running benchmarks for commit {commit.hexsha[:8]}")

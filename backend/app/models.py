@@ -198,3 +198,30 @@ class AdminSession(Base):
         Index("idx_admin_sessions_active", "is_active"),
         Index("idx_admin_sessions_expires", "expires_at"),
     )
+
+
+class MemrayBuildFailure(Base):
+    __tablename__ = "memray_build_failures"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    commit_sha = Column(String(40), ForeignKey("commits.sha"), nullable=False)
+    binary_id = Column(String(50), ForeignKey("binaries.id"), nullable=False)
+    environment_id = Column(String(50), ForeignKey("environments.id"), nullable=False)
+    error_message = Column(Text, nullable=False)
+    failure_timestamp = Column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC).replace(tzinfo=None)
+    )
+    commit_timestamp = Column(DateTime, nullable=False)  # Timestamp of the failing commit
+
+    commit = relationship("Commit")
+    binary = relationship("Binary")
+    environment = relationship("Environment")
+
+    __table_args__ = (
+        UniqueConstraint(
+            "binary_id", "environment_id", name="unique_binary_env_failure"
+        ),
+        Index("idx_memray_failures_timestamp", "failure_timestamp"),
+        Index("idx_memray_failures_commit_timestamp", "commit_timestamp"),
+        Index("idx_memray_failures_binary_env", "binary_id", "environment_id"),
+    )
