@@ -28,41 +28,9 @@ def process_commits(
     try:
         repo = git.Repo(repo_path)
 
-        # Clean the repository first
-        logger.info("Cleaning repository with git clean -fxd")
-        repo.git.clean("-fxd")
-
-        # Configure once at the beginning
-        logger.info("Running configure once for local checkout mode")
-        logger.debug(f"Configure flags: {configure_flags}")
-
-        configure_cmd = [str(repo_path / "configure"), *configure_flags.split()]
-        logger.debug(f"Configure command: {' '.join(configure_cmd)}")
-
-        result = subprocess.run(
-            configure_cmd, cwd=repo_path, check=True, capture_output=verbose < 3
-        )
-        if verbose >= 3:
-            if result.stdout:
-                print(
-                    result.stdout.decode()
-                    if isinstance(result.stdout, bytes)
-                    else result.stdout
-                )
-            if result.stderr:
-                print(
-                    result.stderr.decode()
-                    if isinstance(result.stderr, bytes)
-                    else result.stderr
-                )
-
         # Process each commit
         for commit in commits:
             logger.info(f"Processing commit {commit.hexsha[:8]} in local checkout mode")
-
-            # Checkout the commit
-            logger.info(f"Checking out commit {commit.hexsha[:8]}")
-            repo.git.checkout(commit.hexsha)
 
             # Create unique directory for this run
             run_dir = output_dir / commit.hexsha
@@ -90,15 +58,31 @@ def process_commits(
             logger.debug(f"Created run directory: {run_dir}")
 
             try:
-                # Build Python using make (no make install)
-                logger.info(f"Running make for commit {commit.hexsha[:8]}")
-                logger.debug(f"Make flags: {make_flags}")
+                # Create parent temp directory for this commit
+                parent_temp_dir = Path(tempfile.mkdtemp(prefix="cpython_build_"))
+                logger.debug(f"Parent temp directory: {parent_temp_dir}")
+                
+                # Clone CPython repo into temp directory
+                cpython_repo_dir = parent_temp_dir / "cpython"
+                logger.info(f"Cloning CPython repo to temp directory for commit {commit.hexsha[:8]}")
+                cloned_repo = git.Repo.clone_from(str(repo_path), str(cpython_repo_dir))
+                cloned_repo.git.checkout(commit.hexsha)
+                logger.debug(f"CPython cloned to: {cpython_repo_dir}")
+                
+                # Create install directory within parent temp dir
+                install_dir = parent_temp_dir / "install"
+                install_dir.mkdir(parents=True, exist_ok=True)
+                logger.debug(f"Install directory: {install_dir}")
 
-                make_cmd = ["make", *make_flags.split()]
-                logger.debug(f"Make command: {' '.join(make_cmd)}")
+                # Configure for this commit with prefix
+                logger.info(f"Running configure for commit {commit.hexsha[:8]}")
+                logger.debug(f"Configure flags: {configure_flags}")
+
+                configure_cmd = [str(cpython_repo_dir / "configure"), f"--prefix={install_dir}", *configure_flags.split()]
+                logger.debug(f"Configure command: {' '.join(configure_cmd)}")
 
                 result = subprocess.run(
-                    make_cmd, cwd=repo_path, check=True, capture_output=verbose < 3
+                    configure_cmd, cwd=cpython_repo_dir, check=True, capture_output=verbose < 3
                 )
                 if verbose >= 3:
                     if result.stdout:
@@ -114,19 +98,89 @@ def process_commits(
                             else result.stderr
                         )
 
-                # Create virtual environment using local python binary
+                # Clean before building
+                logger.info(f"Running make clean for commit {commit.hexsha[:8]}")
+                
+                clean_cmd = ["make", "clean"]
+                logger.debug(f"Clean command: {' '.join(clean_cmd)}")
+                
+                result = subprocess.run(
+                    clean_cmd, cwd=cpython_repo_dir, check=True, capture_output=verbose < 3
+                )
+                if verbose >= 3:
+                    if result.stdout:
+                        print(
+                            result.stdout.decode()
+                            if isinstance(result.stdout, bytes)
+                            else result.stdout
+                        )
+                    if result.stderr:
+                        print(
+                            result.stderr.decode()
+                            if isinstance(result.stderr, bytes)
+                            else result.stderr
+                        )
+
+                # Build Python using make (no make install)
+                logger.info(f"Running make for commit {commit.hexsha[:8]}")
+                logger.debug(f"Make flags: {make_flags}")
+
+                make_cmd = ["make", *make_flags.split()]
+                logger.debug(f"Make command: {' '.join(make_cmd)}")
+
+                result = subprocess.run(
+                    make_cmd, cwd=cpython_repo_dir, check=True, capture_output=verbose < 3
+                )
+                if verbose >= 3:
+                    if result.stdout:
+                        print(
+                            result.stdout.decode()
+                            if isinstance(result.stdout, bytes)
+                            else result.stdout
+                        )
+                    if result.stderr:
+                        print(
+                            result.stderr.decode()
+                            if isinstance(result.stderr, bytes)
+                            else result.stderr
+                        )
+
+                # Install Python
+                logger.info(f"Running make install for commit {commit.hexsha[:8]}")
+                
+                install_cmd = ["make", "install"]
+                logger.debug(f"Install command: {' '.join(install_cmd)}")
+                
+                result = subprocess.run(
+                    install_cmd, cwd=cpython_repo_dir, check=True, capture_output=verbose < 3
+                )
+                if verbose >= 3:
+                    if result.stdout:
+                        print(
+                            result.stdout.decode()
+                            if isinstance(result.stdout, bytes)
+                            else result.stdout
+                        )
+                    if result.stderr:
+                        print(
+                            result.stderr.decode()
+                            if isinstance(result.stderr, bytes)
+                            else result.stderr
+                        )
+
+                # Create virtual environment using installed python binary
                 logger.info(
                     f"Creating virtual environment for commit {commit.hexsha[:8]}"
                 )
-                venv_dir = Path(tempfile.mkdtemp(prefix="cpython_venv_"))
+                venv_dir = parent_temp_dir / "venv"
                 logger.debug(f"Creating virtual environment in {venv_dir}")
 
-                python_binary = repo_path / "python"
+                python_binary = install_dir / "bin" / "python3"
                 venv_cmd = [str(python_binary), "-m", "venv", str(venv_dir)]
                 logger.debug(f"Venv command: {' '.join(venv_cmd)}")
 
                 result = subprocess.run(
-                    venv_cmd, check=True, capture_output=verbose < 3
+                    venv_cmd, cwd=cpython_repo_dir, check=True, capture_output=verbose < 3
                 )
                 if verbose >= 3:
                     if result.stdout:
@@ -209,11 +263,12 @@ def process_commits(
                     f"Successfully completed processing commit {commit.hexsha[:8]}"
                 )
 
-                # Clean up venv directory
+                # Clean up parent temp directory
                 try:
-                    shutil.rmtree(venv_dir, ignore_errors=True)
+                    shutil.rmtree(parent_temp_dir, ignore_errors=True)
+                    logger.debug(f"Cleaned up parent temp directory: {parent_temp_dir}")
                 except Exception as e:
-                    logger.warning(f"Failed to clean up venv directory {venv_dir}: {e}")
+                    logger.warning(f"Failed to clean up parent temp directory {parent_temp_dir}: {e}")
 
             except subprocess.CalledProcessError as e:
                 error_msg = f"Error processing commit {commit.hexsha}: {e}"
