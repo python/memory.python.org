@@ -79,23 +79,18 @@ jobs:
         
         echo "Getting commits from date: $TARGET_DATE"
         
-        # Get commits from the target date (00:00 to 23:59 UTC)
-        COMMITS=$(git log --since="$TARGET_DATE 00:00:00 UTC" --until="$TARGET_DATE 23:59:59 UTC" --pretty=format:"%H" --reverse)
+        # Get the last commit from the target date
+        LAST_COMMIT=$(git log --since="$TARGET_DATE 00:00:00 UTC" --until="$TARGET_DATE 23:59:59 UTC" --pretty=format:"%H" -n 1)
         
-        if [ -z "$COMMITS" ]; then
+        if [ -z "$LAST_COMMIT" ]; then
           echo "No commits found for date $TARGET_DATE"
           exit 1
         else
-          COMMIT_COUNT=$(echo "$COMMITS" | wc -l)
-          FIRST_COMMIT=$(echo "$COMMITS" | head -1)
-          LAST_COMMIT=$(echo "$COMMITS" | tail -1)
+          echo "Found last commit for date $TARGET_DATE: $LAST_COMMIT"
+          echo "COMMIT_RANGE=$LAST_COMMIT" >> $GITHUB_ENV
+          echo "COMMIT_COUNT=1" >> $GITHUB_ENV
           
-          echo "Found $COMMIT_COUNT commits for date $TARGET_DATE"
-          echo "COMMIT_RANGE=${FIRST_COMMIT}..${LAST_COMMIT}" >> $GITHUB_ENV
-          echo "COMMIT_COUNT=$COMMIT_COUNT" >> $GITHUB_ENV
-          
-          echo "Commits to benchmark:"
-          echo "$COMMITS"
+          echo "Commit to benchmark: $LAST_COMMIT"
         fi
         
     - name: Print environment variables
