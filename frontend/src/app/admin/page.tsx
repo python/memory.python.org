@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, LogOut, User } from 'lucide-react';
+import api from '@/lib/api';
 import BinariesManager from './components/BinariesManager';
 import EnvironmentsManager from './components/EnvironmentsManager';
 import AdminUsersManager from './components/AdminUsersManager';
@@ -26,6 +27,9 @@ interface AdminUser {
   name?: string;
   avatar_url: string;
 }
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
 export default function AdminPage() {
   const [user, setUser] = useState<AdminUser | null>(null);
@@ -50,14 +54,12 @@ export default function AdminPage() {
     // setLoading(false);
     // return;
     try {
-      const response = await fetch(`${API_BASE}/admin/me`, {
-        credentials: 'include',
+      const userData = await api.getAdminMe();
+      setUser({
+        username: userData.username,
+        name: userData.name || userData.username,
+        avatar_url: userData.avatar_url || 'https://github.com/identicons/default.png'
       });
-
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-      }
     } catch (error) {
       // Silent fail for auth check - user will see login screen
     } finally {
@@ -68,8 +70,7 @@ export default function AdminPage() {
   const initiateGitHubAuth = async () => {
     setAuthenticating(true);
     try {
-      const response = await fetch(`${API_BASE}/admin/auth/github`);
-      const data = await response.json();
+      const data = await api.getGitHubAuthUrl();
 
       // Redirect to GitHub OAuth
       window.location.href = data.auth_url;
@@ -86,10 +87,7 @@ export default function AdminPage() {
 
   const logout = async () => {
     try {
-      await fetch(`${API_BASE}/admin/auth/logout`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      await api.adminLogout();
       setUser(null);
       toast({
         title: 'Logged Out',

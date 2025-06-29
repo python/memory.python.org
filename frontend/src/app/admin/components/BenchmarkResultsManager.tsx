@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -33,29 +34,13 @@ import {
   CheckSquare,
   Square
 } from 'lucide-react';
-
-interface BenchmarkResult {
-  id: string;
-  run_id: string;
-  benchmark_name: string;
-  high_watermark_bytes: number;
-  total_allocated_bytes: number;
-  allocation_histogram: number[][];
-  top_allocating_functions: any[];
-  has_flamegraph: boolean;
-}
-
-interface BenchmarkResultUpdate {
-  high_watermark_bytes?: number;
-  total_allocated_bytes?: number;
-  allocation_histogram?: number[][];
-  top_allocating_functions?: any[];
-}
+import { api } from '@/lib/api';
+import type { BenchmarkResultResponse, BenchmarkResultUpdate } from '@/lib/types';
 
 export default function BenchmarkResultsManager() {
-  const [results, setResults] = useState<BenchmarkResult[]>([]);
+  const [results, setResults] = useState<BenchmarkResultResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingResult, setEditingResult] = useState<BenchmarkResult | null>(null);
+  const [editingResult, setEditingResult] = useState<BenchmarkResultResponse | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<BenchmarkResultUpdate>({});
   const [selectedResults, setSelectedResults] = useState<Set<string>>(new Set());
@@ -63,8 +48,6 @@ export default function BenchmarkResultsManager() {
   const [flamegraphHtml, setFlamegraphHtml] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   const [filters, setFilters] = useState({
     run_id: '',
@@ -82,25 +65,38 @@ export default function BenchmarkResultsManager() {
 
   const loadResults = async () => {
     try {
-      const params = new URLSearchParams();
+      const params: {
+        run_id?: string;
+        benchmark_name?: string;
+        min_memory?: number;
+        max_memory?: number;
+        skip?: number;
+        limit?: number;
+      } = {
+        skip: currentPage * pageSize,
+        limit: pageSize,
+      };
 
-      if (filters.run_id) params.append('run_id', filters.run_id);
-      if (filters.benchmark_name) params.append('benchmark_name', filters.benchmark_name);
-      if (filters.min_memory) params.append('min_memory', filters.min_memory);
-      if (filters.max_memory) params.append('max_memory', filters.max_memory);
-      params.append('skip', (currentPage * pageSize).toString());
-      params.append('limit', pageSize.toString());
+      if (filters.run_id) params.run_id = filters.run_id;
+      if (filters.benchmark_name) params.benchmark_name = filters.benchmark_name;
+      if (filters.min_memory) params.min_memory = parseInt(filters.min_memory);
+      if (filters.max_memory) params.max_memory = parseInt(filters.max_memory);
 
-      const response = await fetch(`${API_BASE}/admin/benchmark-results?${params}`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setResults(data);
-      } else {
-        throw new Error('Failed to load benchmark results');
-      }
+      const apiResults = await api.getAdminBenchmarkResults(params);
+      
+      // Map API response to component's expected format
+      const mappedResults: BenchmarkResultResponse[] = apiResults.map(result => ({
+        id: result.id,
+        run_id: result.run_id,
+        benchmark_name: result.benchmark_name,
+        high_watermark_bytes: result.high_watermark_bytes,
+        total_allocated_bytes: result.total_allocated_bytes,
+        allocation_histogram: result.allocation_histogram,
+        top_allocating_functions: result.top_allocating_functions,
+        has_flamegraph: result.has_flamegraph,
+      }));
+      
+      setResults(mappedResults);
     } catch (error) {
       console.error('Error loading benchmark results:', error);
       toast({
@@ -113,7 +109,7 @@ export default function BenchmarkResultsManager() {
     }
   };
 
-  const handleEdit = (result: BenchmarkResult) => {
+  const handleEdit = (result: BenchmarkResultResponse) => {
     setEditingResult(result);
     setEditForm({
       high_watermark_bytes: result.high_watermark_bytes,
@@ -127,30 +123,15 @@ export default function BenchmarkResultsManager() {
     if (!editingResult) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/admin/benchmark-results/${editingResult.id}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(editForm),
-        }
-      );
-
-      if (response.ok) {
-        await loadResults();
-        setEditingResult(null);
-        setEditForm({});
-        toast({
-          title: 'Success',
-          description: 'Benchmark result updated successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Update failed');
-      }
+      // Map component's editForm to API's expected format
+      await api.updateBenchmarkResult(editingResult.id, editForm);
+      await loadResults();
+      setEditingResult(null);
+      setEditForm({});
+      toast({
+        title: 'Success',
+        description: 'Benchmark result updated successfully',
+      });
     } catch (error) {
       console.error('Error updating benchmark result:', error);
       toast({
@@ -163,7 +144,7 @@ export default function BenchmarkResultsManager() {
     }
   };
 
-  const handleDelete = async (result: BenchmarkResult) => {
+  const handleDelete = async (result: BenchmarkResultResponse) => {
     if (
       !confirm(
         `Are you sure you want to delete benchmark result "${result.id}"?`
@@ -173,21 +154,12 @@ export default function BenchmarkResultsManager() {
 
     setDeleting(result.id);
     try {
-      const response = await fetch(`${API_BASE}/admin/benchmark-results/${result.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
+      await api.deleteBenchmarkResult(result.id);
+      await loadResults();
+      toast({
+        title: 'Success',
+        description: 'Benchmark result deleted successfully',
       });
-
-      if (response.ok) {
-        await loadResults();
-        toast({
-          title: 'Success',
-          description: 'Benchmark result deleted successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Delete failed');
-      }
     } catch (error) {
       console.error('Error deleting benchmark result:', error);
       toast({
@@ -214,27 +186,13 @@ export default function BenchmarkResultsManager() {
 
     setBulkDeleting(true);
     try {
-      const response = await fetch(`${API_BASE}/admin/benchmark-results/bulk-delete`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(Array.from(selectedResults)),
+      const data = await api.bulkDeleteBenchmarkResults(Array.from(selectedResults));
+      await loadResults();
+      setSelectedResults(new Set());
+      toast({
+        title: 'Success',
+        description: `Deleted ${data.deleted_count} benchmark results`,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        await loadResults();
-        setSelectedResults(new Set());
-        toast({
-          title: 'Success',
-          description: `Deleted ${data.deleted_count} benchmark results`,
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Bulk delete failed');
-      }
     } catch (error) {
       console.error('Error bulk deleting benchmark results:', error);
       toast({
@@ -251,19 +209,8 @@ export default function BenchmarkResultsManager() {
 
   const handleViewFlamegraph = async (resultId: string) => {
     try {
-      const response = await fetch(
-        `${API_BASE}/admin/benchmark-results/${resultId}/flamegraph`,
-        {
-          credentials: 'include',
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setFlamegraphHtml(data.flamegraph_html);
-      } else {
-        throw new Error('Failed to load flamegraph');
-      }
+      const data = await api.getBenchmarkResultFlamegraph(resultId);
+      setFlamegraphHtml(data.flamegraph_html);
     } catch (error) {
       console.error('Error loading flamegraph:', error);
       toast({
@@ -481,6 +428,9 @@ export default function BenchmarkResultsManager() {
                           <DialogContent className="max-w-6xl max-h-[80vh]">
                             <DialogHeader>
                               <DialogTitle>Flamegraph - {result.benchmark_name}</DialogTitle>
+                              <DialogDescription>
+                                Interactive flamegraph visualization showing memory allocation patterns for this benchmark result.
+                              </DialogDescription>
                             </DialogHeader>
                             <div className="overflow-auto">
                               {flamegraphHtml && (
@@ -506,6 +456,9 @@ export default function BenchmarkResultsManager() {
                         <DialogContent className="max-w-2xl">
                           <DialogHeader>
                             <DialogTitle>Edit Benchmark Result</DialogTitle>
+                            <DialogDescription>
+                              Modify the benchmark result metrics and metadata. Changes will be saved immediately.
+                            </DialogDescription>
                           </DialogHeader>
                           <div className="space-y-4">
                             <div>

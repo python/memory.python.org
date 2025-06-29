@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Key, Power, PowerOff, Trash2, Copy, Check } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { AuthToken, TokenAnalytics } from '@/lib/types';
+import type { TokenResponse, TokenAnalytics } from '@/lib/types';
 import {
   Dialog,
   DialogContent,
@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 
 export default function TokensManager() {
-  const [tokens, setTokens] = useState<AuthToken[]>([]);
+  const [tokens, setTokens] = useState<TokenResponse[]>([]);
   const [analytics, setAnalytics] = useState<TokenAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -57,7 +57,7 @@ export default function TokensManager() {
     return new Date(dateString).toLocaleString();
   };
 
-  const handleToggleTokenActive = async (token: AuthToken) => {
+  const handleToggleTokenActive = async (token: TokenResponse) => {
     try {
       if (token.is_active) {
         await api.deactivateToken(token.id);
@@ -85,7 +85,7 @@ export default function TokensManager() {
     }
   };
 
-  const handleDeleteToken = async (token: AuthToken) => {
+  const handleDeleteToken = async (token: TokenResponse) => {
     if (
       !confirm(
         `Are you sure you want to delete the token "${token.name}"? This action cannot be undone.`

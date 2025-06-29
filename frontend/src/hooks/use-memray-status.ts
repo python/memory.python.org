@@ -1,20 +1,6 @@
 import { useState, useEffect } from 'react';
-
-interface MemrayStatus {
-  has_failures: boolean;
-  failure_count: number;
-  affected_environments: Array<{
-    binary_id: string;
-    environment_id: string;
-    binary_name: string;
-    environment_name: string;
-    latest_failure: string;
-    commit_sha: string;
-    error_message: string;
-    failure_timestamp: string;
-  }>;
-  message: string;
-}
+import api from '@/lib/api';
+import type { MemrayStatus } from '@/lib/types';
 
 export function useMemrayStatus() {
   const [status, setStatus] = useState<MemrayStatus | null>(null);
@@ -25,12 +11,8 @@ export function useMemrayStatus() {
 
   const fetchStatus = async () => {
     try {
-      const response = await fetch(`${API_BASE}/memray-status`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch memray status');
-      }
-      const data = await response.json();
-      setStatus(data);
+      const status = await api.getMemrayStatus();
+      setStatus(status);
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Unknown error');

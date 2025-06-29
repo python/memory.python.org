@@ -1,6 +1,7 @@
 import type {
   Binary,
   Commit,
+  CommitResponse,
   DiffTableRow,
   Environment,
   PythonVersionFilterOption,
@@ -9,16 +10,36 @@ import type {
   TokenCreate,
   TokenUpdate,
   TokenAnalytics,
+  AdminUser,
+  AdminUserCreate,
+  AdminCurrentUser,
+  GitHubAuthResponse,
+  MemrayFailure,
+  MemrayFailureSummary,
+  MemrayStatus,
+  DatabaseTable,
+  TableSchema,
+  QueryResult,
+  BenchmarkResult,
+  BenchmarkResultUpdate,
+  CommitUpdate,
+  BinaryCreate,
+  EnvironmentCreate,
+  AdminUserResponse,
+  TokenResponse,
+  BenchmarkResultResponse,
+  QueryRequest,
 } from './types';
 import type {
-  ApiResponse,
   ErrorResponse,
   TrendDataPoint,
   EnvironmentSummary,
   CommitSummary,
   BatchTrendsResponse,
   UploadResponse,
+  TrendRequest,
   TrendQueryParams,
+  BatchTrendRequest,
   BenchmarkNamesQueryParams,
   DiffQueryParams,
   UploadRequestData,
@@ -108,14 +129,6 @@ async function fetchApi<T>(
   }
 }
 
-// Utility functions for response handling
-function wrapApiResponse<T>(data: T, message?: string): ApiResponse<T> {
-  return {
-    data,
-    message,
-    status: 200,
-  };
-}
 
 // Helper for creating typed query parameters
 function createQueryParams(params: Record<string, any>): URLSearchParams {
@@ -168,29 +181,24 @@ export const api = {
     return fetchApi<DiffTableRow[]>(`/diff?${queryParams.toString()}`);
   },
 
-  // Upload endpoint
-  uploadBenchmarkResults: (data: UploadRequestData) =>
-    fetchApi<UploadResponse>('/upload', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
 
   // Optimized trends endpoint
-  getBenchmarkTrends: (params: TrendQueryParams) => {
+  getBenchmarkTrends: (params: TrendRequest) => {
     const queryParams = createQueryParams(params);
     return fetchApi<TrendDataPoint[]>(`/trends?${queryParams.toString()}`);
   },
 
   // Batch trends endpoint
-  getBatchBenchmarkTrends: (trendQueries: TrendQueryParams[]) => {
+  getBatchBenchmarkTrends: (trendQueries: TrendRequest[]) => {
+    const requestBody: BatchTrendRequest = {
+      trend_queries: trendQueries.map((query) => ({
+        ...query,
+        limit: query.limit || 50,
+      })),
+    };
     return fetchApi<BatchTrendsResponse>('/trends-batch', {
       method: 'POST',
-      body: JSON.stringify({
-        trend_queries: trendQueries.map((query) => ({
-          ...query,
-          limit: query.limit || 50,
-        })),
-      }),
+      body: JSON.stringify(requestBody),
     });
   },
 
@@ -200,12 +208,12 @@ export const api = {
 
   // Token management endpoints
   getTokens: () =>
-    fetchApi<AuthToken[]>('/admin/tokens', {
+    fetchApi<TokenResponse[]>('/admin/tokens', {
       credentials: 'include',
     }),
 
   createToken: (tokenData: TokenCreate) =>
-    fetchApi<{ success: boolean; token: string; token_info: AuthToken }>(
+    fetchApi<{ success: boolean; token: string; token_info: TokenResponse }>(
       '/admin/tokens',
       {
         method: 'POST',
@@ -215,7 +223,7 @@ export const api = {
     ),
 
   updateToken: (tokenId: number, tokenUpdate: TokenUpdate) =>
-    fetchApi<AuthToken>(`/admin/tokens/${tokenId}`, {
+    fetchApi<TokenResponse>(`/admin/tokens/${tokenId}`, {
       method: 'PUT',
       credentials: 'include',
       body: JSON.stringify(tokenUpdate),
@@ -246,16 +254,7 @@ export const api = {
 
   // Admin user endpoints
   getAdminUsers: () =>
-    fetchApi<
-      Array<{
-        id: number;
-        github_username: string;
-        added_by: string;
-        added_at: string;
-        is_active: boolean;
-        notes?: string;
-      }>
-    >('/admin/users', {
+    fetchApi<AdminUserResponse[]>('/admin/users', {
       credentials: 'include',
     }),
 
@@ -270,6 +269,222 @@ export const api = {
         is_active: boolean;
       }>
     >('/maintainers'),
+
+  // Admin Authentication endpoints
+  getAdminMe: () =>
+    fetchApi<AdminCurrentUser>('/admin/me', {
+      credentials: 'include',
+    }),
+
+  getGitHubAuthUrl: () =>
+    fetchApi<GitHubAuthResponse>('/admin/auth/github'),
+
+  adminLogout: () =>
+    fetchApi<{ success: boolean }>('/admin/auth/logout', {
+      method: 'POST',
+      credentials: 'include',
+    }),
+
+  // Query Console endpoints
+  getDatabaseTables: () =>
+    fetchApi<DatabaseTable>('/admin/query/tables', {
+      credentials: 'include',
+    }),
+
+  getTableSchema: (tableName: string) =>
+    fetchApi<TableSchema>(`/admin/query/schema/${tableName}`, {
+      credentials: 'include',
+    }),
+
+  executeQuery: (query: string, readOnly: boolean) => {
+    const requestBody: QueryRequest = {
+      query: query.trim(),
+      read_only: readOnly,
+    };
+    return fetchApi<QueryResult>('/admin/query', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(requestBody),
+    });
+  },
+
+  // Memray endpoints
+  getMemrayFailures: () =>
+    fetchApi<MemrayFailure[]>('/admin/memray-failures', {
+      credentials: 'include',
+    }),
+
+  getMemrayFailuresSummary: () =>
+    fetchApi<MemrayFailureSummary[]>('/admin/memray-failures/summary', {
+      credentials: 'include',
+    }),
+
+  deleteMemrayFailure: (id: number) =>
+    fetchApi<{ success: boolean }>(`/admin/memray-failures/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+  getMemrayStatus: () =>
+    fetchApi<MemrayStatus>('/memray-status'),
+
+  // Admin Benchmark Results endpoints
+  getAdminBenchmarkResults: (params: {
+    run_id?: string;
+    benchmark_name?: string;
+    min_memory?: number;
+    max_memory?: number;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const queryParams = createQueryParams(params);
+    return fetchApi<BenchmarkResultResponse[]>(
+      `/admin/benchmark-results?${queryParams.toString()}`,
+      {
+        credentials: 'include',
+      }
+    );
+  },
+
+  getAdminBenchmarkResult: (id: string) =>
+    fetchApi<BenchmarkResultResponse>(`/admin/benchmark-results/${id}`, {
+      credentials: 'include',
+    }),
+
+  updateBenchmarkResult: (id: string, data: BenchmarkResultUpdate) =>
+    fetchApi<BenchmarkResultResponse>(`/admin/benchmark-results/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  deleteBenchmarkResult: (id: string) =>
+    fetchApi<{ success: boolean }>(`/admin/benchmark-results/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+  bulkDeleteBenchmarkResults: (ids: string[]) =>
+    fetchApi<{ success: boolean; deleted_count: number }>(
+      '/admin/benchmark-results/bulk-delete',
+      {
+        method: 'POST',
+        credentials: 'include',
+        body: JSON.stringify(ids),
+      }
+    ),
+
+  getBenchmarkResultFlamegraph: (id: string) =>
+    fetchApi<{ flamegraph_html: string }>(
+      `/admin/benchmark-results/${id}/flamegraph`,
+      {
+        credentials: 'include',
+      }
+    ),
+
+  // Admin Commit endpoints
+  getAdminCommits: (params: {
+    sha?: string;
+    author?: string;
+    python_version?: string;
+    skip?: number;
+    limit?: number;
+  }) => {
+    const queryParams = createQueryParams(params);
+    return fetchApi<CommitResponse[]>(`/admin/commits?${queryParams.toString()}`, {
+      credentials: 'include',
+    });
+  },
+
+  getAdminCommit: (sha: string) =>
+    fetchApi<CommitResponse>(`/admin/commits/${sha}`, {
+      credentials: 'include',
+    }),
+
+  updateCommit: (sha: string, data: CommitUpdate) =>
+    fetchApi<CommitResponse>(`/admin/commits/${sha}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  deleteCommit: (sha: string) =>
+    fetchApi<{ success: boolean }>(`/admin/commits/${sha}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+
+  // Admin Binary endpoints
+  getAdminBinaries: () =>
+    fetchApi<Binary[]>('/admin/binaries', {
+      credentials: 'include',
+    }),
+
+  createBinary: (data: BinaryCreate) =>
+    fetchApi<Binary>('/admin/binaries', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  updateBinary: (id: string, data: BinaryCreate) =>
+    fetchApi<Binary>(`/admin/binaries/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  deleteBinary: (id: string) =>
+    fetchApi<{ success: boolean }>(`/admin/binaries/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+  // Admin Environment endpoints
+  getAdminEnvironments: () =>
+    fetchApi<Environment[]>('/admin/environments', {
+      credentials: 'include',
+    }),
+
+  createEnvironment: (data: EnvironmentCreate) =>
+    fetchApi<Environment>('/admin/environments', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  updateEnvironment: (id: string, data: EnvironmentCreate) =>
+    fetchApi<Environment>(`/admin/environments/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  deleteEnvironment: (id: string) =>
+    fetchApi<{ success: boolean }>(`/admin/environments/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
+
+  // Admin User Management endpoints (renamed to avoid conflict with getAdminUsers)
+  getAdminUsersList: () =>
+    fetchApi<AdminUserResponse[]>('/admin/users', {
+      credentials: 'include',
+    }),
+
+  createAdminUser: (data: AdminUserCreate) =>
+    fetchApi<AdminUserResponse>('/admin/users', {
+      method: 'POST',
+      credentials: 'include',
+      body: JSON.stringify(data),
+    }),
+
+  deleteAdminUser: (username: string) =>
+    fetchApi<{ success: boolean }>(`/admin/users/${username}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    }),
 };
 
 export default api;

@@ -1,10 +1,4 @@
 // API Response Types
-export interface ApiResponse<T> {
-  data: T;
-  message?: string;
-  status: number;
-}
-
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;
@@ -56,7 +50,7 @@ export interface DiffQueryParams {
   metric_key: string;
 }
 
-export interface TrendQueryParams {
+export interface TrendRequest {
   benchmark_name: string;
   binary_id: string;
   environment_id: string;
@@ -64,6 +58,9 @@ export interface TrendQueryParams {
   python_minor: number;
   limit?: number;
 }
+
+// Keep TrendQueryParams as alias for backward compatibility
+export interface TrendQueryParams extends TrendRequest {}
 
 export interface UploadRequestData {
   commit_sha: string;
@@ -112,7 +109,11 @@ export interface CommitSummary {
   run_timestamp: string;
 }
 
-// Batch Trends Response Types
+// Batch Trends Request/Response Types
+export interface BatchTrendRequest {
+  trend_queries: TrendRequest[];
+}
+
 export interface BatchTrendsResponse {
   results: Record<string, TrendDataPoint[]>;
 }

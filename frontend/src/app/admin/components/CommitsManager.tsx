@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -32,8 +33,9 @@ import {
   Play
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { api } from '@/lib/api';
 
-interface Commit {
+interface CommitDisplayData {
   sha: string;
   timestamp: string;
   message: string;
@@ -53,15 +55,13 @@ interface CommitUpdate {
 }
 
 export default function CommitsManager() {
-  const [commits, setCommits] = useState<Commit[]>([]);
+  const [commits, setCommits] = useState<CommitDisplayData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [editingCommit, setEditingCommit] = useState<Commit | null>(null);
+  const [editingCommit, setEditingCommit] = useState<CommitDisplayData | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<CommitUpdate>({});
   const { toast } = useToast();
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   const [filters, setFilters] = useState({
     sha: '',
@@ -78,24 +78,29 @@ export default function CommitsManager() {
 
   const loadCommits = async () => {
     try {
-      const params = new URLSearchParams();
+      const params = {
+        sha: filters.sha || undefined,
+        author: filters.author || undefined,
+        python_version: filters.python_version || undefined,
+        skip: currentPage * pageSize,
+        limit: pageSize,
+      };
 
-      if (filters.sha) params.append('sha', filters.sha);
-      if (filters.author) params.append('author', filters.author);
-      if (filters.python_version) params.append('python_version', filters.python_version);
-      params.append('skip', (currentPage * pageSize).toString());
-      params.append('limit', pageSize.toString());
-
-      const response = await fetch(`${API_BASE}/admin/commits?${params}`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setCommits(data);
-      } else {
-        throw new Error('Failed to load commits');
-      }
+      const apiCommits = await api.getAdminCommits(params);
+      
+      // Map API response to component's expected format
+      const mappedCommits: CommitDisplayData[] = apiCommits.map(commit => ({
+        sha: commit.sha,
+        timestamp: commit.timestamp,
+        message: commit.message,
+        author: commit.author,
+        python_major: commit.python_major,
+        python_minor: commit.python_minor,
+        python_patch: commit.python_patch,
+        run_count: commit.run_count,
+      }));
+      
+      setCommits(mappedCommits);
     } catch (error) {
       console.error('Error loading commits:', error);
       toast({
@@ -108,7 +113,7 @@ export default function CommitsManager() {
     }
   };
 
-  const handleEdit = (commit: Commit) => {
+  const handleEdit = (commit: CommitDisplayData) => {
     setEditingCommit(commit);
     setEditForm({
       message: commit.message,
@@ -123,30 +128,24 @@ export default function CommitsManager() {
     if (!editingCommit) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/admin/commits/${editingCommit.sha}`,
-        {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify(editForm),
-        }
-      );
-
-      if (response.ok) {
-        await loadCommits();
-        setEditingCommit(null);
-        setEditForm({});
-        toast({
-          title: 'Success',
-          description: 'Commit updated successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Update failed');
-      }
+      // Map component's editForm to API's expected format
+      const apiUpdateData = {
+        message: editForm.message,
+        author: editForm.author,
+        python_version: editForm.python_major !== undefined && editForm.python_minor !== undefined && editForm.python_patch !== undefined ? {
+          major: editForm.python_major,
+          minor: editForm.python_minor,
+          patch: editForm.python_patch,
+        } : undefined,
+      };
+      await api.updateCommit(editingCommit.sha, apiUpdateData);
+      await loadCommits();
+      setEditingCommit(null);
+      setEditForm({});
+      toast({
+        title: 'Success',
+        description: 'Commit updated successfully',
+      });
     } catch (error) {
       console.error('Error updating commit:', error);
       toast({
@@ -159,7 +158,7 @@ export default function CommitsManager() {
     }
   };
 
-  const handleDelete = async (commit: Commit) => {
+  const handleDelete = async (commit: CommitDisplayData) => {
     if (
       !confirm(
         `Are you sure you want to delete commit "${commit.sha.substring(0, 8)}"? This will also delete all associated runs and benchmark results.`
@@ -169,21 +168,12 @@ export default function CommitsManager() {
 
     setDeleting(commit.sha);
     try {
-      const response = await fetch(`${API_BASE}/admin/commits/${commit.sha}`, {
-        method: 'DELETE',
-        credentials: 'include',
+      await api.deleteCommit(commit.sha);
+      await loadCommits();
+      toast({
+        title: 'Success',
+        description: 'Commit deleted successfully',
       });
-
-      if (response.ok) {
-        await loadCommits();
-        toast({
-          title: 'Success',
-          description: 'Commit deleted successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Delete failed');
-      }
     } catch (error) {
       console.error('Error deleting commit:', error);
       toast({
@@ -343,6 +333,9 @@ export default function CommitsManager() {
                       <DialogContent className="max-w-2xl">
                         <DialogHeader>
                           <DialogTitle>Edit Commit</DialogTitle>
+                          <DialogDescription>
+                            Update commit metadata including message, author, and Python version information.
+                          </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
                           <div>

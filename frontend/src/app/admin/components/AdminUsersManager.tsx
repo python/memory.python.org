@@ -40,18 +40,11 @@ import {
   Shield,
   Crown,
 } from 'lucide-react';
-
-interface AdminUser {
-  id: number;
-  github_username: string;
-  added_by: string;
-  added_at: string;
-  is_active: boolean;
-  notes?: string;
-}
+import { api } from '@/lib/api';
+import type { AdminUserResponse, AdminUserCreate } from '@/lib/types';
 
 export default function AdminUsersManager() {
-  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [users, setUsers] = useState<AdminUserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newUser, setNewUser] = useState({
@@ -60,8 +53,6 @@ export default function AdminUsersManager() {
   });
   const { toast } = useToast();
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   useEffect(() => {
     fetchUsers();
@@ -69,16 +60,8 @@ export default function AdminUsersManager() {
 
   const fetchUsers = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/users`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data);
-      } else {
-        throw new Error('Failed to fetch admin users');
-      }
+      const data = await api.getAdminUsersList();
+      setUsers(data);
     } catch (error) {
       console.error('Error fetching admin users:', error);
       toast({
@@ -102,31 +85,18 @@ export default function AdminUsersManager() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          github_username: newUser.github_username.trim(),
-          notes: newUser.notes.trim() || null,
-        }),
+      const createdUser = await api.createAdminUser({
+        github_username: newUser.github_username.trim(),
+        notes: newUser.notes.trim() || undefined,
       });
-
-      if (response.ok) {
-        const createdUser = await response.json();
-        setUsers((prev) => [...prev, createdUser]);
-        setNewUser({ github_username: '', notes: '' });
-        setDialogOpen(false);
-        toast({
-          title: 'Success',
-          description: `Admin user @${createdUser.github_username} created successfully`,
-        });
-      } else {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to create admin user');
-      }
+      
+      setUsers((prev) => [...prev, createdUser]);
+      setNewUser({ github_username: '', notes: '' });
+      setDialogOpen(false);
+      toast({
+        title: 'Success',
+        description: `Admin user @${createdUser.github_username} created successfully`,
+      });
     } catch (error) {
       console.error('Error creating admin user:', error);
       toast({
@@ -152,23 +122,14 @@ export default function AdminUsersManager() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/admin/users/${username}`, {
-        method: 'DELETE',
-        credentials: 'include',
+      await api.deleteAdminUser(username);
+      setUsers((prev) =>
+        prev.filter((user) => user.github_username !== username)
+      );
+      toast({
+        title: 'Success',
+        description: `Admin user @${username} removed successfully`,
       });
-
-      if (response.ok) {
-        setUsers((prev) =>
-          prev.filter((user) => user.github_username !== username)
-        );
-        toast({
-          title: 'Success',
-          description: `Admin user @${username} removed successfully`,
-        });
-      } else {
-        const error = await response.json();
-        throw new Error(error.detail || 'Failed to remove admin user');
-      }
     } catch (error) {
       console.error('Error removing admin user:', error);
       toast({
@@ -227,26 +188,24 @@ export default function AdminUsersManager() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Admin User</DialogTitle>
-                <DialogDescription className="space-y-2">
-                  <p>
-                    Grant administrative access to a GitHub user. They will be
-                    able to access this admin panel and manage system settings.
-                  </p>
-                  <div className="p-3 bg-muted/50 border rounded-md">
-                    <div className="flex items-start gap-2">
-                      <Shield className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                      <div className="text-sm">
-                        <p className="font-medium">
-                          Administrative privileges include:
-                        </p>
-                        <p className="text-muted-foreground text-xs mt-1">
-                          Binary configurations • Environment settings • Run
-                          management • User administration
-                        </p>
+                <DialogDescription>
+                  Grant administrative access to a GitHub user. They will be
+                  able to access this admin panel and manage system settings.
+                </DialogDescription>
+                <div className="p-3 bg-muted/50 border rounded-md">
+                  <div className="flex items-start gap-2">
+                    <Shield className="w-4 h-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm">
+                      <div className="font-medium">
+                        Administrative privileges include:
+                      </div>
+                      <div className="text-muted-foreground text-xs mt-1">
+                        Binary configurations • Environment settings • Run
+                        management • User administration
                       </div>
                     </div>
                   </div>
-                </DialogDescription>
+                </div>
               </DialogHeader>
               <div className="space-y-4">
                 <div>

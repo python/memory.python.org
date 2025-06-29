@@ -1,6 +1,20 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
+
+// Dynamically import AceEditor to avoid SSR issues
+const AceEditor = dynamic(
+  () =>
+    import('react-ace').then((mod) => {
+      // Load required ACE modules
+      require('ace-builds/src-noconflict/mode-sql');
+      require('ace-builds/src-noconflict/theme-monokai');
+      require('ace-builds/src-noconflict/ext-language_tools');
+      return mod.default;
+    }),
+  { ssr: false }
+);
 import {
   Card,
   CardContent,
@@ -31,11 +45,14 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { api } from '@/lib/api';
+import type { DatabaseTable, TableSchema, QueryResult } from '@/lib/types';
 import { 
   Terminal, 
   Play, 
@@ -49,16 +66,7 @@ import {
   BookOpen
 } from 'lucide-react';
 
-interface QueryResult {
-  success: boolean;
-  rows?: any[];
-  affected_rows?: number;
-  error?: string;
-  execution_time_ms?: number;
-  column_names?: string[];
-}
-
-interface DatabaseTable {
+interface DatabaseTableLocal {
   name: string;
   columns?: Array<{
     name: string;
@@ -75,58 +83,194 @@ export default function QueryConsole() {
   const [readOnly, setReadOnly] = useState(true);
   const [tables, setTables] = useState<string[]>([]);
   const [selectedTable, setSelectedTable] = useState<string>('');
-  const [tableSchema, setTableSchema] = useState<DatabaseTable | null>(null);
+  const [tableSchema, setTableSchema] = useState<DatabaseTableLocal | null>(null);
+  const [allSchemas, setAllSchemas] = useState<{[tableName: string]: DatabaseTableLocal}>({});
   const [queryHistory, setQueryHistory] = useState<string[]>([]);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const aceEditorRef = useRef<any>(null);
   const { toast } = useToast();
-
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   useEffect(() => {
     loadTables();
     loadQueryHistory();
   }, []);
 
+  // Load all schemas when tables are loaded
+  useEffect(() => {
+    if (tables.length > 0) {
+      loadAllSchemas();
+    }
+  }, [tables]);
+
   const loadTables = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/query/tables`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setTables(data.tables || []);
+      const data = await api.getDatabaseTables();
+      // Extract table names from the DatabaseTable response
+      if (data && 'tables' in data) {
+        setTables(data.tables);
+      } else {
+        setTables([]);
       }
     } catch (error) {
       console.error('Error loading tables:', error);
     }
   };
 
-  const loadTableSchema = async (tableName: string) => {
+  const loadAllSchemas = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/query/schema/${tableName}`, {
-        credentials: 'include',
+      const schemas: {[tableName: string]: DatabaseTableLocal} = {};
+      
+      // Load all table schemas in parallel
+      const schemaPromises = tables.map(async (tableName) => {
+        try {
+          const data = await api.getTableSchema(tableName);
+          return {
+            tableName,
+            schema: {
+              name: tableName,
+              columns: (data.columns || []).map(col => ({
+                ...col,
+                default: col.default ?? null,
+              })),
+            }
+          };
+        } catch (error) {
+          console.error(`Error loading schema for ${tableName}:`, error);
+          return null;
+        }
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setTableSchema({
-          name: data.table_name,
-          columns: data.columns,
-        });
-      } else {
-        setTableSchema(null);
-        toast({
-          title: 'Error',
-          description: 'Failed to load table schema',
-          variant: 'destructive',
-        });
+      const results = await Promise.all(schemaPromises);
+      
+      results.forEach(result => {
+        if (result) {
+          schemas[result.tableName] = result.schema;
+        }
+      });
+
+      setAllSchemas(schemas);
+      
+      // Set up ACE autocomplete after schemas are loaded
+      if (aceEditorRef.current?.editor) {
+        setupAutoComplete(aceEditorRef.current.editor, schemas);
       }
+    } catch (error) {
+      console.error('Error loading all schemas:', error);
+    }
+  };
+
+  const loadTableSchema = async (tableName: string) => {
+    try {
+      const data = await api.getTableSchema(tableName);
+      setTableSchema({
+        name: tableName,
+        columns: (data.columns || []).map(col => ({
+          ...col,
+          default: col.default ?? null,
+        })),
+      });
     } catch (error) {
       console.error('Error loading table schema:', error);
       setTableSchema(null);
+      toast({
+        title: 'Error',
+        description: 'Failed to load table schema',
+        variant: 'destructive',
+      });
     }
+  };
+
+  const setupAutoComplete = (editor: any, schemas: {[tableName: string]: DatabaseTableLocal}) => {
+    // Remove existing custom completers
+    const langTools = (window as any).ace.require('ace/ext/language_tools');
+    
+    // Custom completer for table names
+    const tableCompleter = {
+      getCompletions: function(editor: any, session: any, pos: any, prefix: any, callback: any) {
+        const tableCompletions = Object.keys(schemas).map(tableName => ({
+          caption: tableName,
+          value: tableName,
+          meta: 'table',
+          score: 1000
+        }));
+        
+        callback(null, tableCompletions);
+      }
+    };
+
+    // Custom completer for column names  
+    const columnCompleter = {
+      getCompletions: function(editor: any, session: any, pos: any, prefix: any, callback: any) {
+        const allColumns: any[] = [];
+        
+        // Get current line to detect context
+        const line = session.getLine(pos.row).toLowerCase();
+        
+        // Add all columns from all tables
+        Object.values(schemas).forEach(schema => {
+          schema.columns?.forEach(column => {
+            allColumns.push({
+              caption: `${column.name} (${schema.name})`,
+              value: column.name,
+              meta: `${column.type} | ${schema.name}`,
+              score: 900
+            });
+          });
+        });
+
+        // Try to detect table context for more relevant suggestions
+        let contextTable = null;
+        const tableNames = Object.keys(schemas);
+        
+        for (const tableName of tableNames) {
+          if (line.includes(tableName.toLowerCase())) {
+            contextTable = tableName;
+            break;
+          }
+        }
+
+        // If we found a table context, prioritize its columns
+        if (contextTable && schemas[contextTable]) {
+          const contextColumns = schemas[contextTable].columns?.map(column => ({
+            caption: column.name,
+            value: column.name,
+            meta: `${column.type} | ${contextTable}`,
+            score: 1100 // Higher score for context-aware suggestions
+          })) || [];
+          
+          callback(null, [...contextColumns, ...allColumns]);
+        } else {
+          callback(null, allColumns);
+        }
+      }
+    };
+
+    // SQL keywords completer
+    const sqlKeywordsCompleter = {
+      getCompletions: function(editor: any, session: any, pos: any, prefix: any, callback: any) {
+        const keywords = [
+          'SELECT', 'FROM', 'WHERE', 'JOIN', 'INNER JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'FULL JOIN',
+          'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT', 'OFFSET', 'UNION', 'UNION ALL',
+          'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'DROP', 'ALTER', 'INDEX',
+          'COUNT', 'SUM', 'AVG', 'MIN', 'MAX', 'DISTINCT', 'AS', 'AND', 'OR', 'NOT',
+          'NULL', 'IS NULL', 'IS NOT NULL', 'LIKE', 'ILIKE', 'IN', 'EXISTS', 'BETWEEN',
+          'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DESC', 'ASC'
+        ];
+        
+        const keywordCompletions = keywords.map(keyword => ({
+          caption: keyword,
+          value: keyword,
+          meta: 'keyword',
+          score: 800
+        }));
+        
+        callback(null, keywordCompletions);
+      }
+    };
+
+    // Add our custom completers
+    langTools.addCompleter(tableCompleter);
+    langTools.addCompleter(columnCompleter);
+    langTools.addCompleter(sqlKeywordsCompleter);
   };
 
   const loadQueryHistory = () => {
@@ -163,24 +307,31 @@ export default function QueryConsole() {
     setResult(null);
 
     try {
-      const response = await fetch(`${API_BASE}/admin/query`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify({
-          query: query.trim(),
-          read_only: readOnly,
-        }),
-      });
-
-      if (response.ok) {
-        const data: QueryResult = await response.json();
+      const data = await api.executeQuery(query.trim(), readOnly);
+      
+      // Defensive check: if backend says success but we have indicators of failure
+      // (null affected_rows, no rows, AND no execution_time), it might be a failed query
+      // Note: execution_time_ms should always be present for successful queries
+      if (data.success && 
+          data.affected_rows === null && 
+          (!data.rows || data.rows.length === 0) && 
+          (data.execution_time_ms === null || data.execution_time_ms === undefined)) {
+        // This looks like a failed query that the backend incorrectly marked as successful
+        setResult({
+          success: false,
+          error: 'Query execution failed (no results or execution time returned)',
+        });
+        toast({
+          title: 'Query Failed',
+          description: 'Query execution failed (no results or execution time returned)',
+          variant: 'destructive',
+        });
+      } else {
+        // Use the API response as-is
         setResult(data);
+        saveToHistory(query.trim());
         
         if (data.success) {
-          saveToHistory(query.trim());
           toast({
             title: 'Query Executed',
             description: `Query completed in ${data.execution_time_ms}ms`,
@@ -188,51 +339,28 @@ export default function QueryConsole() {
         } else {
           toast({
             title: 'Query Failed',
-            description: data.error || 'Unknown error',
-            variant: 'destructive',
-          });
-        }
-      } else {
-        // Get response text first, then try to parse as JSON
-        const responseText = await response.text();
-        
-        try {
-          const errorData = JSON.parse(responseText);
-          setResult({
-            success: false,
-            error: errorData.detail || 'Query execution failed',
-          });
-          toast({
-            title: 'Error',
-            description: errorData.detail || 'Query execution failed',
-            variant: 'destructive',
-          });
-        } catch (jsonError) {
-          // Handle non-JSON error responses (e.g., HTML "Internal Server Error")
-          const errorMessage = responseText.includes('Internal Server Error') 
-            ? 'Internal server error occurred. Please check the query syntax and try again.'
-            : responseText || 'Query execution failed';
-          
-          setResult({
-            success: false,
-            error: errorMessage,
-          });
-          toast({
-            title: 'Error',
-            description: errorMessage,
+            description: data.error || 'Unknown error occurred',
             variant: 'destructive',
           });
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error executing query:', error);
+      
+      let errorMessage = 'Query execution failed';
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
       setResult({
         success: false,
-        error: 'Network error or server unavailable',
+        error: errorMessage,
       });
       toast({
         title: 'Error',
-        description: 'Network error or server unavailable',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -242,8 +370,8 @@ export default function QueryConsole() {
 
   const insertSampleQuery = (sampleQuery: string) => {
     setQuery(sampleQuery);
-    if (textareaRef.current) {
-      textareaRef.current.focus();
+    if (aceEditorRef.current) {
+      aceEditorRef.current.editor.focus();
     }
   };
 
@@ -806,13 +934,37 @@ LIMIT 10;`
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Textarea
-                  ref={textareaRef}
-                  placeholder="Enter your SQL query here..."
+                <AceEditor
+                  mode="sql"
+                  theme="monokai"
                   value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  rows={10}
-                  className="font-mono text-sm"
+                  onChange={setQuery}
+                  name="sql-editor"
+                  editorProps={{ $blockScrolling: true }}
+                  width="100%"
+                  height="200px"
+                  fontSize={14}
+                  showPrintMargin={false}
+                  showGutter={true}
+                  highlightActiveLine={true}
+                  onLoad={(editor) => {
+                    aceEditorRef.current = { editor };
+                    // Set up autocomplete if schemas are already loaded
+                    if (Object.keys(allSchemas).length > 0) {
+                      setupAutoComplete(editor, allSchemas);
+                    }
+                  }}
+                  setOptions={{
+                    enableBasicAutocompletion: true,
+                    enableLiveAutocompletion: true,
+                    enableSnippets: true,
+                    showLineNumbers: true,
+                    tabSize: 2,
+                  }}
+                  style={{
+                    borderRadius: '6px',
+                    border: '1px solid hsl(var(--border))',
+                  }}
                 />
               </div>
 
@@ -870,7 +1022,7 @@ LIMIT 10;`
               </CardHeader>
               <CardContent>
                 {result.success ? (
-                  result.rows ? (
+                  result.rows && result.rows.length > 0 ? (
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <p className="text-sm text-muted-foreground">
@@ -913,7 +1065,7 @@ LIMIT 10;`
                       <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
                       <h3 className="text-lg font-medium">Query Executed Successfully</h3>
                       <p className="text-muted-foreground">
-                        {result.affected_rows !== undefined 
+                        {result.affected_rows !== undefined && result.affected_rows !== null
                           ? `${result.affected_rows} rows affected`
                           : 'Query completed successfully'
                         }
@@ -1014,6 +1166,9 @@ LIMIT 10;`
                 <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
                   <DialogHeader>
                     <DialogTitle>{category} Queries</DialogTitle>
+                    <DialogDescription>
+                      Browse and select from pre-built {category.toLowerCase()} queries to help you get started.
+                    </DialogDescription>
                   </DialogHeader>
                   <div className="flex-1 overflow-y-auto space-y-2 pr-2">
                     {queries.map((sample, index) => (

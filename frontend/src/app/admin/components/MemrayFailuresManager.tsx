@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, RefreshCw, CheckCircle } from 'lucide-react';
+import api from '@/lib/api';
+import type { MemrayFailure as ApiMemrayFailure, MemrayFailureSummary } from '@/lib/types';
 import FailureCard from '@/components/memray/FailureCard';
 
 interface MemrayFailure {
@@ -52,26 +54,36 @@ export default function MemrayFailuresManager() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [failuresRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/admin/memray-failures`, {
-          credentials: 'include',
-        }),
-        fetch(`${API_BASE}/admin/memray-failures/summary`, {
-          credentials: 'include',
-        }),
+      const [apiFailures, apiSummary] = await Promise.all([
+        api.getMemrayFailures(),
+        api.getMemrayFailuresSummary(),
       ]);
 
-      if (!failuresRes.ok || !summaryRes.ok) {
-        throw new Error('Failed to load memray failure data');
-      }
+      // Map API response to component's expected format
+      const mappedFailures: MemrayFailure[] = apiFailures.map((failure: ApiMemrayFailure) => ({
+        id: failure.id,
+        commit_sha: failure.commit_sha,
+        binary_id: failure.binary_name, // Using name as ID
+        environment_id: failure.environment_name, // Using name as ID
+        binary_name: failure.binary_name,
+        environment_name: failure.environment_name,
+        error_message: failure.error_message,
+        failure_timestamp: failure.failure_timestamp,
+        commit_timestamp: failure.commit_timestamp,
+      }));
 
-      const [failuresData, summaryData] = await Promise.all([
-        failuresRes.json(),
-        summaryRes.json(),
-      ]);
+      const mappedSummary: FailureSummary[] = apiSummary.map((summary: MemrayFailureSummary) => ({
+        binary_id: summary.environment_name,
+        binary_name: summary.environment_name,
+        environment_id: summary.environment_name,
+        environment_name: summary.environment_name,
+        commit_sha: '',
+        failure_timestamp: summary.latest_failure,
+        commit_timestamp: summary.latest_failure,
+      }));
 
-      setFailures(failuresData);
-      setSummary(summaryData);
+      setFailures(mappedFailures);
+      setSummary(mappedSummary);
     } catch (error) {
       console.error('Failed to load memray failures:', error);
       toast({
@@ -87,15 +99,7 @@ export default function MemrayFailuresManager() {
   const deleteFailure = async (id: number) => {
     setDeleting(id);
     try {
-      const response = await fetch(`${API_BASE}/admin/memray-failures/${id}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to delete failure');
-      }
-
+      await api.deleteMemrayFailure(id);
       await loadData();
       toast({
         title: 'Success',

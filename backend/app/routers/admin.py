@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
 from sqlalchemy import select, delete, func, text, desc, and_
 from sqlalchemy.ext.asyncio import AsyncSession
+import sqlparse
 
 from ..database import get_database
 from ..admin_auth import (
@@ -1084,11 +1085,10 @@ async def execute_query(
     admin_username = admin_session.github_username
     
     try:
-        # Execute the query
-        result = await db.execute(text(query))
-        
+        # Handle single statement queries properly
         if query_upper.startswith("SELECT") or query_upper.startswith("WITH"):
-            # For SELECT queries, fetch all results
+            # For SELECT queries, execute and fetch results
+            result = await db.execute(text(query))
             rows = result.fetchall()
             
             # Convert to list of dictionaries
@@ -1096,7 +1096,7 @@ async def execute_query(
                 column_names = list(result.keys())
                 rows_data = [dict(zip(column_names, row)) for row in rows]
             else:
-                column_names = []
+                column_names = list(result.keys()) if result.keys() else []
                 rows_data = []
             
             execution_time = (time.time() - start_time) * 1000
@@ -1108,13 +1108,21 @@ async def execute_query(
                 execution_time_ms=round(execution_time, 2),
             )
         else:
-            # For non-SELECT queries, commit and return affected rows
+            # For non-SELECT queries (INSERT, UPDATE, DELETE, etc.)
+            # Handle multiple statements if needed
+            statements = [stmt.strip() for stmt in sqlparse.split(query) if stmt.strip()]
+            
+            total_affected_rows = 0
+            for stmt in statements:
+                stmt_result = await db.execute(text(stmt))
+                total_affected_rows += stmt_result.rowcount
+            
             await db.commit()
             execution_time = (time.time() - start_time) * 1000
             
             return QueryResult(
                 success=True,
-                affected_rows=result.rowcount,
+                affected_rows=total_affected_rows,
                 execution_time_ms=round(execution_time, 2),
             )
             

@@ -33,10 +33,6 @@ export default function BinariesPage() {
         setLoading(true);
         setError(null);
         const binariesData = await api.getBinaries();
-        console.log(
-          'Binaries data received:',
-          binariesData.map((b) => ({ id: b.id, icon: b.icon, color: b.color }))
-        );
         setBinaries(binariesData);
       } catch (err) {
         setError(
@@ -100,9 +96,6 @@ export default function BinariesPage() {
 
   // Helper function to get display info from binary configuration
   const getBinaryInfo = (binary: Binary) => {
-    console.log(
-      `getBinaryInfo for ${binary.id}: icon=${binary.icon}, color=${binary.color}`
-    );
     const IconComponent = getIconByName(binary.icon);
     const color = binary.color || '#8b5cf6';
 

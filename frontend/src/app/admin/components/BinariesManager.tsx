@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Server } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface Binary {
   id: string;
@@ -42,8 +43,6 @@ export default function BinariesManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   const [formData, setFormData] = useState({
     id: '',
@@ -61,16 +60,8 @@ export default function BinariesManager() {
 
   const loadBinaries = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/binaries`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setBinaries(data);
-      } else {
-        throw new Error('Failed to load binaries');
-      }
+      const data = await api.getAdminBinaries();
+      setBinaries(data);
     } catch (error) {
       toast({
         title: 'Error',
@@ -92,42 +83,28 @@ export default function BinariesManager() {
         .split(',')
         .map((f) => f.trim())
         .filter((f) => f),
-      description: formData.description || null,
+      description: formData.description || undefined,
       color: formData.color,
       icon: formData.icon,
       display_order: parseInt(formData.display_order.toString()) || 0,
     };
 
     try {
-      const url = editingBinary
-        ? `${API_BASE}/admin/binaries/${editingBinary.id}`
-        : `${API_BASE}/admin/binaries`;
-
-      const method = editingBinary ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(binaryData),
-      });
-
-      if (response.ok) {
-        await loadBinaries();
-        setIsDialogOpen(false);
-        resetForm();
-        toast({
-          title: 'Success',
-          description: `Binary ${
-            editingBinary ? 'updated' : 'created'
-          } successfully`,
-        });
+      if (editingBinary) {
+        await api.updateBinary(editingBinary.id, binaryData);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Operation failed');
+        await api.createBinary(binaryData);
       }
+      
+      await loadBinaries();
+      setIsDialogOpen(false);
+      resetForm();
+      toast({
+        title: 'Success',
+        description: `Binary ${
+          editingBinary ? 'updated' : 'created'
+        } successfully`,
+      });
     } catch (error) {
       toast({
         title: 'Error',
@@ -157,21 +134,12 @@ export default function BinariesManager() {
     if (!confirm(`Are you sure you want to delete "${binary.name}"?`)) return;
 
     try {
-      const response = await fetch(`${API_BASE}/admin/binaries/${binary.id}`, {
-        method: 'DELETE',
-        credentials: 'include',
+      await api.deleteBinary(binary.id);
+      await loadBinaries();
+      toast({
+        title: 'Success',
+        description: 'Binary deleted successfully',
       });
-
-      if (response.ok) {
-        await loadBinaries();
-        toast({
-          title: 'Success',
-          description: 'Binary deleted successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Delete failed');
-      }
     } catch (error) {
       toast({
         title: 'Error',

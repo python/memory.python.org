@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Edit, Trash2, Monitor } from 'lucide-react';
+import { api } from '@/lib/api';
 
 interface Environment {
   id: string;
@@ -39,8 +40,6 @@ export default function EnvironmentsManager() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
 
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   const [formData, setFormData] = useState({
     id: '',
@@ -54,16 +53,8 @@ export default function EnvironmentsManager() {
 
   const loadEnvironments = async () => {
     try {
-      const response = await fetch(`${API_BASE}/admin/environments`, {
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setEnvironments(data);
-      } else {
-        throw new Error('Failed to load environments');
-      }
+      const data = await api.getAdminEnvironments();
+      setEnvironments(data);
     } catch (error) {
       toast({
         title: 'Error',
@@ -81,39 +72,25 @@ export default function EnvironmentsManager() {
     const environmentData = {
       id: formData.id,
       name: formData.name,
-      description: formData.description || null,
+      description: formData.description || undefined,
     };
 
     try {
-      const url = editingEnvironment
-        ? `${API_BASE}/admin/environments/${editingEnvironment.id}`
-        : `${API_BASE}/admin/environments`;
-
-      const method = editingEnvironment ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        credentials: 'include',
-        body: JSON.stringify(environmentData),
-      });
-
-      if (response.ok) {
-        await loadEnvironments();
-        setIsDialogOpen(false);
-        resetForm();
-        toast({
-          title: 'Success',
-          description: `Environment ${
-            editingEnvironment ? 'updated' : 'created'
-          } successfully`,
-        });
+      if (editingEnvironment) {
+        await api.updateEnvironment(editingEnvironment.id, environmentData);
       } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Operation failed');
+        await api.createEnvironment(environmentData);
       }
+      
+      await loadEnvironments();
+      setIsDialogOpen(false);
+      resetForm();
+      toast({
+        title: 'Success',
+        description: `Environment ${
+          editingEnvironment ? 'updated' : 'created'
+        } successfully`,
+      });
     } catch (error) {
       toast({
         title: 'Error',
@@ -142,24 +119,12 @@ export default function EnvironmentsManager() {
       return;
 
     try {
-      const response = await fetch(
-        `${API_BASE}/admin/environments/${environment.id}`,
-        {
-          method: 'DELETE',
-          credentials: 'include',
-        }
-      );
-
-      if (response.ok) {
-        await loadEnvironments();
-        toast({
-          title: 'Success',
-          description: 'Environment deleted successfully',
-        });
-      } else {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || 'Delete failed');
-      }
+      await api.deleteEnvironment(environment.id);
+      await loadEnvironments();
+      toast({
+        title: 'Success',
+        description: 'Environment deleted successfully',
+      });
     } catch (error) {
       toast({
         title: 'Error',
