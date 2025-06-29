@@ -54,13 +54,13 @@ export default function FailureCard({
   if (compact) {
     return (
       <>
-        <div className="p-3 border rounded-lg bg-amber-50 border-amber-200">
+        <div className="p-3 border rounded-lg bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
           <div className="flex items-center justify-between">
             <div className="flex-1">
-              <div className="font-medium text-amber-900">
+              <div className="font-medium text-amber-900 dark:text-amber-200">
                 {binary_name} on {environment_name}
               </div>
-              <div className="text-sm text-amber-700 mt-1">
+              <div className="text-sm text-amber-700 dark:text-amber-300 mt-1">
                 Commit: {commit_sha.substring(0, 8)} • {formatTimestamp(commit_timestamp || failure_timestamp)}
               </div>
             </div>

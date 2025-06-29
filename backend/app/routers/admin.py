@@ -1080,6 +1080,9 @@ async def execute_query(
     
     start_time = time.time()
     
+    # Get admin username now while in async context
+    admin_username = admin_session.github_username
+    
     try:
         # Execute the query
         result = await db.execute(text(query))
@@ -1121,7 +1124,7 @@ async def execute_query(
         
         logger.error(f"Query execution failed: {e}", extra={
             "query": query,
-            "admin_user": admin_session.github_username,
+            "admin_user": admin_username,
         })
         
         return QueryResult(

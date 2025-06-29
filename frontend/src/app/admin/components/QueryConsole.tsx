@@ -193,16 +193,36 @@ export default function QueryConsole() {
           });
         }
       } else {
-        const errorData = await response.json();
-        setResult({
-          success: false,
-          error: errorData.detail || 'Query execution failed',
-        });
-        toast({
-          title: 'Error',
-          description: errorData.detail || 'Query execution failed',
-          variant: 'destructive',
-        });
+        // Get response text first, then try to parse as JSON
+        const responseText = await response.text();
+        
+        try {
+          const errorData = JSON.parse(responseText);
+          setResult({
+            success: false,
+            error: errorData.detail || 'Query execution failed',
+          });
+          toast({
+            title: 'Error',
+            description: errorData.detail || 'Query execution failed',
+            variant: 'destructive',
+          });
+        } catch (jsonError) {
+          // Handle non-JSON error responses (e.g., HTML "Internal Server Error")
+          const errorMessage = responseText.includes('Internal Server Error') 
+            ? 'Internal server error occurred. Please check the query syntax and try again.'
+            : responseText || 'Query execution failed';
+          
+          setResult({
+            success: false,
+            error: errorMessage,
+          });
+          toast({
+            title: 'Error',
+            description: errorMessage,
+            variant: 'destructive',
+          });
+        }
       }
     } catch (error) {
       console.error('Error executing query:', error);
@@ -537,8 +557,9 @@ WHERE expires_at < NOW() OR is_active = false;`
 WHERE high_watermark_bytes > 1000000000; -- 1GB threshold`
       },
       {
-        name: '🗑️ Remove old Python version data',
-        query: `DELETE FROM runs 
+        name: '🗑️ Remove old Python version data (Step 1: benchmark_results)',
+        query: `-- First delete benchmark_results for old Python versions
+DELETE FROM benchmark_results 
 WHERE run_id IN (
   SELECT r.run_id 
   FROM runs r 
@@ -547,33 +568,66 @@ WHERE run_id IN (
 );`
       },
       {
-        name: '🗑️ Delete all data for specific binary',
-        query: `-- Delete all runs and results for a specific binary
+        name: '🗑️ Remove old Python version data (Step 2: runs)',
+        query: `-- Then delete runs for old Python versions
+DELETE FROM runs 
+WHERE run_id IN (
+  SELECT r.run_id 
+  FROM runs r 
+  JOIN commits c ON r.commit_sha = c.sha 
+  WHERE c.python_major < 3 OR (c.python_major = 3 AND c.python_minor < 10)
+);`
+      },
+      {
+        name: '🗑️ Delete specific Python version data',
+        query: `-- Template: Replace X with Python minor version (e.g., 15)
+-- Run this query twice: first for benchmark_results, then for runs
+DELETE FROM benchmark_results 
+WHERE run_id IN (
+  SELECT run_id FROM runs WHERE python_minor = X
+);
+-- DELETE FROM runs WHERE python_minor = X;`
+      },
+      {
+        name: '🗑️ Delete binary data (Step 1: benchmark_results)',
+        query: `-- First delete benchmark_results for specific binary
 DELETE FROM benchmark_results 
 WHERE run_id IN (
   SELECT run_id FROM runs WHERE binary_id = 'REPLACE_WITH_BINARY_ID'
-);
+);`
+      },
+      {
+        name: '🗑️ Delete binary data (Step 2: runs)',
+        query: `-- Then delete runs for specific binary
 DELETE FROM runs WHERE binary_id = 'REPLACE_WITH_BINARY_ID';`
       },
       {
-        name: '🗑️ Delete all data for specific environment',
-        query: `-- Delete all runs and results for a specific environment
+        name: '🗑️ Delete environment data (Step 1: benchmark_results)',
+        query: `-- First delete benchmark_results for specific environment
 DELETE FROM benchmark_results 
 WHERE run_id IN (
   SELECT run_id FROM runs WHERE environment_id = 'REPLACE_WITH_ENVIRONMENT_ID'
-);
+);`
+      },
+      {
+        name: '🗑️ Delete environment data (Step 2: runs)',
+        query: `-- Then delete runs for specific environment
 DELETE FROM runs WHERE environment_id = 'REPLACE_WITH_ENVIRONMENT_ID';`
       },
       {
-        name: '🗑️ Delete all data older than X months',
-        query: `-- Delete all benchmark data older than 6 months
+        name: '🗑️ Delete old data (Step 1: benchmark_results)',
+        query: `-- First delete benchmark_results older than 6 months
 DELETE FROM benchmark_results 
 WHERE run_id IN (
   SELECT r.run_id 
   FROM runs r 
   JOIN commits c ON r.commit_sha = c.sha 
   WHERE c.timestamp < NOW() - INTERVAL '6 months'
-);
+);`
+      },
+      {
+        name: '🗑️ Delete old data (Step 2: runs)',
+        query: `-- Then delete runs older than 6 months
 DELETE FROM runs 
 WHERE run_id IN (
   SELECT r.run_id 

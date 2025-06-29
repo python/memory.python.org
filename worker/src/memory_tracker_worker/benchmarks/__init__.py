@@ -110,8 +110,10 @@ def run_benchmarks(venv_dir: Path, output_dir: Path, commit: git.Commit) -> None
     # Create temporary directory for benchmark files
     temp_dir = Path(tempfile.mkdtemp(prefix="benchmarks_"))
     try:
-        # Copy benchmark files to temporary directory
+        # Copy benchmark files and directories to temporary directory
         benchmarks_dir = Path(__file__).parent
+        
+        # Copy all benchmark files
         for benchmark_file in benchmarks_dir.glob("*.py"):
             if benchmark_file.name == "__init__.py":
                 continue
@@ -122,10 +124,24 @@ def run_benchmarks(venv_dir: Path, output_dir: Path, commit: git.Commit) -> None
             logger.info(
                 f"Copied benchmark {benchmark_file.name} to temporary directory"
             )
+        
+        # Copy all data directories
+        for item in benchmarks_dir.iterdir():
+            if item.is_dir():
+                dest_dir = temp_dir / item.name
+                shutil.copytree(item, dest_dir)
+                logger.info(
+                    f"Copied directory {item.name} to temporary directory"
+                )
 
-            # Run benchmark with memray
+        # Run benchmarks with memray
+        for benchmark_file in benchmarks_dir.glob("*.py"):
+            if benchmark_file.name == "__init__.py":
+                continue
+                
             benchmark_name = benchmark_file.stem
             logger.info(f"Running benchmark: {benchmark_name}")
+            dest_file = temp_dir / benchmark_file.name
 
             # Run memray
             memray_output = output_dir / f"{benchmark_name}.bin"

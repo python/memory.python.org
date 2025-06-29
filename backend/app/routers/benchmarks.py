@@ -73,10 +73,7 @@ async def get_diff_table(
         db, commit_sha=commit_sha, binary_id=binary_id, environment_id=environment_id
     )
     if not runs:
-        raise HTTPException(
-            status_code=404,
-            detail="No runs found for this commit, binary, and environment",
-        )
+        return []
 
     current_run = runs[0]  # Get the latest run
     current_results = await crud.get_benchmark_results(db, run_id=current_run.run_id)

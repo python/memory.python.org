@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func, update, and_
+from sqlalchemy import select, desc, func, update, and_, delete
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime
 import logging
@@ -322,6 +322,14 @@ async def upload_worker_run(
         # Clean up old flamegraphs if we have more than 100 runs for this environment
         await cleanup_old_flamegraphs_if_needed(db, environment_id, max_flamegraphs=100)
 
+        # Clear any memray build failures for this binary+environment since upload succeeded
+        await db.execute(
+            delete(models.MemrayBuildFailure).where(
+                models.MemrayBuildFailure.binary_id == binary_id,
+                models.MemrayBuildFailure.environment_id == environment_id
+            )
+        )
+
         return {
             "message": "Worker run uploaded successfully",
             "run_id": run_id,
@@ -388,27 +396,6 @@ async def report_memray_failure(
             status_code=400,
             detail=f"Environment '{failure_data.environment_id}' not found."
         )
-    
-    # Create or get commit
-    commit = await crud.get_commit_by_sha(db, sha=failure_data.commit_sha)
-    if not commit:
-        logger.info(f"Commit {failure_data.commit_sha[:8]} not found, creating new commit record")
-        # Create minimal commit record - we'll update it with full metadata later if needed
-        commit_data = schemas.CommitCreate(
-            sha=failure_data.commit_sha,
-            timestamp=failure_data.commit_timestamp,
-            message="Commit with memray build failure",
-            author="Unknown",
-            python_version=schemas.PythonVersion(major=3, minor=12, patch=0)  # Default values
-        )
-        try:
-            commit = await crud.create_commit(db, commit_data)
-            logger.info(f"Successfully created minimal commit record for {failure_data.commit_sha[:8]}")
-        except Exception as e:
-            logger.error(f"Failed to create commit record for {failure_data.commit_sha[:8]}: {e}")
-            raise HTTPException(
-                status_code=500, detail=f"Failed to create commit record: {str(e)}"
-            )
     
     # Check if this failure is newer than any existing failure for this binary+environment
     existing_failure = await db.execute(

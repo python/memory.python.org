@@ -105,8 +105,8 @@ export default function MemrayStatusIndicator() {
                 ))}
               </div>
             ) : (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <div className="text-green-800 text-center">
+              <div className="p-4 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg">
+                <div className="text-green-800 dark:text-green-200 text-center">
                   🎉 All memray builds are currently successful across all environments!
                 </div>
               </div>

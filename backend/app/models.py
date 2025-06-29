@@ -1,6 +1,7 @@
 from sqlalchemy import (
     Column,
     Integer,
+    BigInteger,
     String,
     DateTime,
     Text,
@@ -118,9 +119,9 @@ class BenchmarkResult(Base):
     id = Column(String(200), primary_key=True)
     run_id = Column(String(100), ForeignKey("runs.run_id"), nullable=False)
     benchmark_name = Column(String(100), nullable=False)
-    high_watermark_bytes = Column(Integer, nullable=False)
+    high_watermark_bytes = Column(BigInteger, nullable=False)
     allocation_histogram = Column(JSON, nullable=False)  # Array of [size, count] tuples
-    total_allocated_bytes = Column(Integer, nullable=False)
+    total_allocated_bytes = Column(BigInteger, nullable=False)
     top_allocating_functions = Column(JSON, nullable=False)  # Array of function objects
     flamegraph_html = Column(Text, nullable=True)  # HTML content of the flamegraph
 
@@ -204,7 +205,7 @@ class MemrayBuildFailure(Base):
     __tablename__ = "memray_build_failures"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    commit_sha = Column(String(40), ForeignKey("commits.sha"), nullable=False)
+    commit_sha = Column(String(40), nullable=False)
     binary_id = Column(String(50), ForeignKey("binaries.id"), nullable=False)
     environment_id = Column(String(50), ForeignKey("environments.id"), nullable=False)
     error_message = Column(Text, nullable=False)
@@ -213,7 +214,6 @@ class MemrayBuildFailure(Base):
     )
     commit_timestamp = Column(DateTime, nullable=False)  # Timestamp of the failing commit
 
-    commit = relationship("Commit")
     binary = relationship("Binary")
     environment = relationship("Environment")
 
