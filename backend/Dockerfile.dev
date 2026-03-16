@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim-bookworm
 
 WORKDIR /app
 
@@ -7,10 +7,10 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+COPY requirements-dev.txt .
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install Python dependencies (dev lockfile includes test tooling)
+RUN pip install --no-cache-dir -r requirements-dev.txt
 
 # The source code will be mounted as a volume, so we don't copy it here
 
