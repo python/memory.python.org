@@ -342,14 +342,18 @@ async def upload_worker_run(
         }
 
     except IntegrityError as e:
-        # The only unique constraint that can fire here is
-        # unique_commit_binary_env on the runs table.
-        error_str = str(e).lower()
-        if "unique_commit_binary_env" in error_str or (
-            "commit_sha" in error_str
-            and "binary_id" in error_str
-            and "environment_id" in error_str
-        ):
+        # Check for duplicate run constraint violation.
+        # asyncpg exposes constraint_name directly on the original exception;
+        # fall back to string matching for other backends (e.g. SQLite).
+        constraint = getattr(getattr(e, "orig", None), "constraint_name", None)
+        is_duplicate = (
+            constraint == "unique_commit_binary_env"
+            if constraint is not None
+            else "commit_sha" in str(e).lower()
+            and "binary_id" in str(e).lower()
+            and "environment_id" in str(e).lower()
+        )
+        if is_duplicate:
             logger.error(
                 f"Upload failed: Duplicate run for commit {commit_sha[:8]}, binary '{binary_id}', environment '{environment_id}'"
             )
