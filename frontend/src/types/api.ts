@@ -60,7 +60,7 @@ export interface TrendRequest {
 }
 
 // Keep TrendQueryParams as alias for backward compatibility
-export interface TrendQueryParams extends TrendRequest {}
+export type TrendQueryParams = TrendRequest;
 
 export interface UploadRequestData {
   commit_sha: string;

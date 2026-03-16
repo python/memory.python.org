@@ -5,14 +5,13 @@ import dynamic from 'next/dynamic';
 
 // Dynamically import AceEditor to avoid SSR issues
 const AceEditor = dynamic(
-  () =>
-    import('react-ace').then((mod) => {
-      // Load required ACE modules
-      require('ace-builds/src-noconflict/mode-sql');
-      require('ace-builds/src-noconflict/theme-monokai');
-      require('ace-builds/src-noconflict/ext-language_tools');
-      return mod.default;
-    }),
+  async () => {
+    const mod = await import('react-ace');
+    await import('ace-builds/src-noconflict/mode-sql');
+    await import('ace-builds/src-noconflict/theme-monokai');
+    await import('ace-builds/src-noconflict/ext-language_tools');
+    return mod.default;
+  },
   { ssr: false }
 );
 import {
@@ -24,7 +23,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
@@ -52,14 +50,13 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { api } from '@/lib/api';
-import type { DatabaseTable, TableSchema, QueryResult } from '@/lib/types';
-import { 
-  Terminal, 
-  Play, 
+import type { QueryResult } from '@/lib/types';
+import {
+  Terminal,
+  Play,
   Download,
   Database,
   Clock,
-  Info,
   CheckCircle,
   XCircle,
   Eye,
@@ -118,7 +115,7 @@ export default function QueryConsole() {
   const loadAllSchemas = async () => {
     try {
       const schemas: {[tableName: string]: DatabaseTableLocal} = {};
-      
+
       // Load all table schemas in parallel
       const schemaPromises = tables.map(async (tableName) => {
         try {
@@ -140,7 +137,7 @@ export default function QueryConsole() {
       });
 
       const results = await Promise.all(schemaPromises);
-      
+
       results.forEach(result => {
         if (result) {
           schemas[result.tableName] = result.schema;
@@ -148,7 +145,7 @@ export default function QueryConsole() {
       });
 
       setAllSchemas(schemas);
-      
+
       // Set up ACE autocomplete after schemas are loaded
       if (aceEditorRef.current?.editor) {
         setupAutoComplete(aceEditorRef.current.editor, schemas);
@@ -182,7 +179,7 @@ export default function QueryConsole() {
   const setupAutoComplete = (editor: any, schemas: {[tableName: string]: DatabaseTableLocal}) => {
     // Remove existing custom completers
     const langTools = (window as any).ace.require('ace/ext/language_tools');
-    
+
     // Custom completer for table names
     const tableCompleter = {
       getCompletions: function(editor: any, session: any, pos: any, prefix: any, callback: any) {
@@ -192,19 +189,19 @@ export default function QueryConsole() {
           meta: 'table',
           score: 1000
         }));
-        
+
         callback(null, tableCompletions);
       }
     };
 
-    // Custom completer for column names  
+    // Custom completer for column names
     const columnCompleter = {
       getCompletions: function(editor: any, session: any, pos: any, prefix: any, callback: any) {
         const allColumns: any[] = [];
-        
+
         // Get current line to detect context
         const line = session.getLine(pos.row).toLowerCase();
-        
+
         // Add all columns from all tables
         Object.values(schemas).forEach(schema => {
           schema.columns?.forEach(column => {
@@ -220,7 +217,7 @@ export default function QueryConsole() {
         // Try to detect table context for more relevant suggestions
         let contextTable = null;
         const tableNames = Object.keys(schemas);
-        
+
         for (const tableName of tableNames) {
           if (line.includes(tableName.toLowerCase())) {
             contextTable = tableName;
@@ -236,7 +233,7 @@ export default function QueryConsole() {
             meta: `${column.type} | ${contextTable}`,
             score: 1100 // Higher score for context-aware suggestions
           })) || [];
-          
+
           callback(null, [...contextColumns, ...allColumns]);
         } else {
           callback(null, allColumns);
@@ -255,14 +252,14 @@ export default function QueryConsole() {
           'NULL', 'IS NULL', 'IS NOT NULL', 'LIKE', 'ILIKE', 'IN', 'EXISTS', 'BETWEEN',
           'CASE', 'WHEN', 'THEN', 'ELSE', 'END', 'DESC', 'ASC'
         ];
-        
+
         const keywordCompletions = keywords.map(keyword => ({
           caption: keyword,
           value: keyword,
           meta: 'keyword',
           score: 800
         }));
-        
+
         callback(null, keywordCompletions);
       }
     };
@@ -308,13 +305,13 @@ export default function QueryConsole() {
 
     try {
       const data = await api.executeQuery(query.trim(), readOnly);
-      
+
       // Defensive check: if backend says success but we have indicators of failure
       // (null affected_rows, no rows, AND no execution_time), it might be a failed query
       // Note: execution_time_ms should always be present for successful queries
-      if (data.success && 
-          data.affected_rows === null && 
-          (!data.rows || data.rows.length === 0) && 
+      if (data.success &&
+          data.affected_rows === null &&
+          (!data.rows || data.rows.length === 0) &&
           (data.execution_time_ms === null || data.execution_time_ms === undefined)) {
         // This looks like a failed query that the backend incorrectly marked as successful
         setResult({
@@ -330,7 +327,7 @@ export default function QueryConsole() {
         // Use the API response as-is
         setResult(data);
         saveToHistory(query.trim());
-        
+
         if (data.success) {
           toast({
             title: 'Query Executed',
@@ -346,14 +343,14 @@ export default function QueryConsole() {
       }
     } catch (error: any) {
       console.error('Error executing query:', error);
-      
+
       let errorMessage = 'Query execution failed';
       if (error?.message) {
         errorMessage = error.message;
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
+
       setResult({
         success: false,
         error: errorMessage,
@@ -380,7 +377,7 @@ export default function QueryConsole() {
 
     const csvContent = [
       result.column_names.join(','),
-      ...result.rows.map(row => 
+      ...result.rows.map(row =>
         result.column_names!.map(col => {
           const value = row[col];
           // Escape values that contain commas or quotes
@@ -407,7 +404,7 @@ export default function QueryConsole() {
     'Database Analysis': [
       {
         name: '📊 Database overview',
-        query: `SELECT 
+        query: `SELECT
   schemaname,
   tablename,
   pg_size_pretty(pg_total_relation_size('public.'||tablename)) as size,
@@ -421,7 +418,7 @@ ORDER BY pg_total_relation_size('public.'||tablename) DESC;`
       },
       {
         name: '📈 Table row counts',
-        query: `SELECT 
+        query: `SELECT
   'commits' as table_name, COUNT(*) as row_count FROM commits
 UNION ALL
 SELECT 'runs', COUNT(*) FROM runs
@@ -441,33 +438,33 @@ ORDER BY row_count DESC;`
       },
       {
         name: '🔍 Index usage statistics',
-        query: `SELECT 
+        query: `SELECT
   schemaname,
   tablename,
   indexname,
   idx_scan as index_scans,
   idx_tup_read as tuples_read,
   idx_tup_fetch as tuples_fetched
-FROM pg_stat_user_indexes 
+FROM pg_stat_user_indexes
 WHERE schemaname = 'public'
 ORDER BY idx_scan DESC;`
       },
       {
         name: '📊 Memory usage by benchmark',
-        query: `SELECT 
+        query: `SELECT
   benchmark_name,
   COUNT(*) as result_count,
   pg_size_pretty(AVG(high_watermark_bytes)::bigint) as avg_memory,
   pg_size_pretty(MAX(high_watermark_bytes)) as max_memory,
   pg_size_pretty(MIN(high_watermark_bytes)) as min_memory,
   ROUND(STDDEV(high_watermark_bytes)/1024.0/1024.0, 2) as stddev_mb
-FROM benchmark_results 
-GROUP BY benchmark_name 
+FROM benchmark_results
+GROUP BY benchmark_name
 ORDER BY AVG(high_watermark_bytes) DESC;`
       },
       {
         name: '⏱️ Performance trends by Python version',
-        query: `SELECT 
+        query: `SELECT
   CONCAT(c.python_major, '.', c.python_minor) as python_version,
   COUNT(DISTINCT c.sha) as commits_tested,
   COUNT(br.id) as total_benchmarks,
@@ -481,7 +478,7 @@ ORDER BY c.python_major DESC, c.python_minor DESC;`
       },
       {
         name: '📅 Data freshness check',
-        query: `SELECT 
+        query: `SELECT
   'commits' as table_name,
   COUNT(*) as total_rows,
   MAX(timestamp) as latest_entry,
@@ -490,7 +487,7 @@ ORDER BY c.python_major DESC, c.python_minor DESC;`
   COUNT(CASE WHEN timestamp > NOW() - INTERVAL '30 days' THEN 1 END) as recent_month
 FROM commits
 UNION ALL
-SELECT 
+SELECT
   'runs',
   COUNT(*),
   MAX(timestamp),
@@ -520,27 +517,27 @@ WHERE r.commit_sha IS NULL;`
       },
       {
         name: '❌ Missing or invalid data',
-        query: `SELECT 
-  'Commits with empty messages' as issue_type, 
+        query: `SELECT
+  'Commits with empty messages' as issue_type,
   COUNT(*) as count
-FROM commits 
+FROM commits
 WHERE message IS NULL OR TRIM(message) = ''
 UNION ALL
 SELECT 'Results with zero memory', COUNT(*)
-FROM benchmark_results 
+FROM benchmark_results
 WHERE high_watermark_bytes = 0 OR high_watermark_bytes IS NULL
 UNION ALL
 SELECT 'Runs with future timestamps', COUNT(*)
-FROM runs 
+FROM runs
 WHERE timestamp > NOW()
 UNION ALL
 SELECT 'Inactive admin sessions', COUNT(*)
-FROM admin_sessions 
+FROM admin_sessions
 WHERE is_active = false OR expires_at < NOW();`
       },
       {
         name: '📊 Duplicate detection',
-        query: `SELECT 
+        query: `SELECT
   'Duplicate commit SHAs' as issue_type,
   COUNT(*) - COUNT(DISTINCT sha) as duplicates
 FROM commits
@@ -557,12 +554,12 @@ FROM benchmark_results;`
     'Performance Analysis': [
       {
         name: '🏃 Top performing benchmarks',
-        query: `SELECT 
+        query: `SELECT
   br.benchmark_name,
   COUNT(*) as runs,
   pg_size_pretty(MIN(br.high_watermark_bytes)) as best_memory,
   pg_size_pretty(MAX(br.high_watermark_bytes)) as worst_memory,
-  ROUND((MAX(br.high_watermark_bytes) - MIN(br.high_watermark_bytes)) / 
+  ROUND((MAX(br.high_watermark_bytes) - MIN(br.high_watermark_bytes)) /
     MIN(br.high_watermark_bytes)::float * 100, 2) as variability_percent
 FROM benchmark_results br
 GROUP BY br.benchmark_name
@@ -571,7 +568,7 @@ ORDER BY variability_percent DESC;`
       },
       {
         name: '🔄 Binary performance comparison',
-        query: `SELECT 
+        query: `SELECT
   b.name as binary_name,
   COUNT(DISTINCT r.run_id) as total_runs,
   COUNT(DISTINCT br.benchmark_name) as benchmarks_tested,
@@ -586,7 +583,7 @@ ORDER BY AVG(br.high_watermark_bytes) DESC;`
       },
       {
         name: '🌍 Environment performance analysis',
-        query: `SELECT 
+        query: `SELECT
   e.name as environment,
   COUNT(DISTINCT r.run_id) as total_runs,
   pg_size_pretty(AVG(br.high_watermark_bytes)::bigint) as avg_memory_usage,
@@ -602,14 +599,14 @@ ORDER BY AVG(br.high_watermark_bytes) DESC;`
     'Storage & Cleanup': [
       {
         name: '💾 Storage usage breakdown',
-        query: `SELECT 
+        query: `SELECT
   'Flamegraph storage' as category,
   COUNT(CASE WHEN flamegraph_html IS NOT NULL THEN 1 END) as items_with_data,
   pg_size_pretty(SUM(LENGTH(flamegraph_html))::bigint) as total_size,
   pg_size_pretty(AVG(LENGTH(flamegraph_html))::bigint) as avg_size_per_item
 FROM benchmark_results
 UNION ALL
-SELECT 
+SELECT
   'Commit messages',
   COUNT(CASE WHEN message IS NOT NULL THEN 1 END),
   pg_size_pretty(SUM(LENGTH(message))::bigint),
@@ -618,7 +615,7 @@ FROM commits;`
       },
       {
         name: '🗑️ Cleanup candidates',
-        query: `SELECT 
+        query: `SELECT
   'Old runs (>90 days)' as cleanup_type,
   COUNT(*) as candidate_count,
   pg_size_pretty(COUNT(*) * 1000) as estimated_space_saved
@@ -626,14 +623,14 @@ FROM runs r
 JOIN commits c ON r.commit_sha = c.sha
 WHERE c.timestamp < NOW() - INTERVAL '90 days'
 UNION ALL
-SELECT 
+SELECT
   'Expired admin sessions',
   COUNT(*),
   pg_size_pretty(COUNT(*) * 500)
 FROM admin_sessions
 WHERE expires_at < NOW() OR is_active = false
 UNION ALL
-SELECT 
+SELECT
   'Unused auth tokens',
   COUNT(*),
   pg_size_pretty(COUNT(*) * 200)
@@ -644,65 +641,65 @@ WHERE is_active = false OR last_used < NOW() - INTERVAL '180 days';`
     'Destructive Operations': [
       {
         name: '🗑️ Delete all flamegraphs',
-        query: `UPDATE benchmark_results 
-SET flamegraph_html = NULL 
+        query: `UPDATE benchmark_results
+SET flamegraph_html = NULL
 WHERE flamegraph_html IS NOT NULL;`
       },
       {
         name: '🗑️ Delete old runs (>90 days)',
-        query: `DELETE FROM runs 
+        query: `DELETE FROM runs
 WHERE run_id IN (
-  SELECT r.run_id 
-  FROM runs r 
-  JOIN commits c ON r.commit_sha = c.sha 
+  SELECT r.run_id
+  FROM runs r
+  JOIN commits c ON r.commit_sha = c.sha
   WHERE c.timestamp < NOW() - INTERVAL '90 days'
 );`
       },
       {
         name: '🗑️ Delete results for specific benchmark',
-        query: `DELETE FROM benchmark_results 
+        query: `DELETE FROM benchmark_results
 WHERE benchmark_name = 'REPLACE_WITH_BENCHMARK_NAME';`
       },
       {
         name: '🗑️ Clean up orphaned commits',
-        query: `DELETE FROM commits 
+        query: `DELETE FROM commits
 WHERE sha NOT IN (SELECT DISTINCT commit_sha FROM runs);`
       },
       {
         name: '🗑️ Delete inactive tokens',
-        query: `DELETE FROM auth_tokens 
-WHERE is_active = false 
+        query: `DELETE FROM auth_tokens
+WHERE is_active = false
 OR last_used < NOW() - INTERVAL '180 days';`
       },
       {
         name: '🗑️ Clear expired admin sessions',
-        query: `DELETE FROM admin_sessions 
+        query: `DELETE FROM admin_sessions
 WHERE expires_at < NOW() OR is_active = false;`
       },
       {
         name: '🗑️ Delete benchmark results by memory threshold',
-        query: `DELETE FROM benchmark_results 
+        query: `DELETE FROM benchmark_results
 WHERE high_watermark_bytes > 1000000000; -- 1GB threshold`
       },
       {
         name: '🗑️ Remove old Python version data (Step 1: benchmark_results)',
         query: `-- First delete benchmark_results for old Python versions
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
-  SELECT r.run_id 
-  FROM runs r 
-  JOIN commits c ON r.commit_sha = c.sha 
+  SELECT r.run_id
+  FROM runs r
+  JOIN commits c ON r.commit_sha = c.sha
   WHERE c.python_major < 3 OR (c.python_major = 3 AND c.python_minor < 10)
 );`
       },
       {
         name: '🗑️ Remove old Python version data (Step 2: runs)',
         query: `-- Then delete runs for old Python versions
-DELETE FROM runs 
+DELETE FROM runs
 WHERE run_id IN (
-  SELECT r.run_id 
-  FROM runs r 
-  JOIN commits c ON r.commit_sha = c.sha 
+  SELECT r.run_id
+  FROM runs r
+  JOIN commits c ON r.commit_sha = c.sha
   WHERE c.python_major < 3 OR (c.python_major = 3 AND c.python_minor < 10)
 );`
       },
@@ -710,7 +707,7 @@ WHERE run_id IN (
         name: '🗑️ Delete specific Python version data',
         query: `-- Template: Replace X with Python minor version (e.g., 15)
 -- Run this query twice: first for benchmark_results, then for runs
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
   SELECT run_id FROM runs WHERE python_minor = X
 );
@@ -719,7 +716,7 @@ WHERE run_id IN (
       {
         name: '🗑️ Delete binary data (Step 1: benchmark_results)',
         query: `-- First delete benchmark_results for specific binary
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
   SELECT run_id FROM runs WHERE binary_id = 'REPLACE_WITH_BINARY_ID'
 );`
@@ -732,7 +729,7 @@ DELETE FROM runs WHERE binary_id = 'REPLACE_WITH_BINARY_ID';`
       {
         name: '🗑️ Delete environment data (Step 1: benchmark_results)',
         query: `-- First delete benchmark_results for specific environment
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
   SELECT run_id FROM runs WHERE environment_id = 'REPLACE_WITH_ENVIRONMENT_ID'
 );`
@@ -745,57 +742,57 @@ DELETE FROM runs WHERE environment_id = 'REPLACE_WITH_ENVIRONMENT_ID';`
       {
         name: '🗑️ Delete old data (Step 1: benchmark_results)',
         query: `-- First delete benchmark_results older than 6 months
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
-  SELECT r.run_id 
-  FROM runs r 
-  JOIN commits c ON r.commit_sha = c.sha 
+  SELECT r.run_id
+  FROM runs r
+  JOIN commits c ON r.commit_sha = c.sha
   WHERE c.timestamp < NOW() - INTERVAL '6 months'
 );`
       },
       {
         name: '🗑️ Delete old data (Step 2: runs)',
         query: `-- Then delete runs older than 6 months
-DELETE FROM runs 
+DELETE FROM runs
 WHERE run_id IN (
-  SELECT r.run_id 
-  FROM runs r 
-  JOIN commits c ON r.commit_sha = c.sha 
+  SELECT r.run_id
+  FROM runs r
+  JOIN commits c ON r.commit_sha = c.sha
   WHERE c.timestamp < NOW() - INTERVAL '6 months'
 );`
       },
       {
         name: '🗑️ Delete largest benchmark results',
         query: `-- Delete benchmark results consuming most storage
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE id IN (
-  SELECT id FROM benchmark_results 
-  ORDER BY LENGTH(COALESCE(flamegraph_html, '')) DESC 
+  SELECT id FROM benchmark_results
+  ORDER BY LENGTH(COALESCE(flamegraph_html, '')) DESC
   LIMIT 100
 );`
       },
       {
         name: '🗑️ Keep only latest N commits per Python version',
         query: `-- Keep only the 50 most recent commits per Python version
-DELETE FROM benchmark_results 
+DELETE FROM benchmark_results
 WHERE run_id IN (
   SELECT r.run_id FROM runs r
   JOIN commits c ON r.commit_sha = c.sha
   WHERE c.sha NOT IN (
     SELECT sha FROM (
       SELECT sha, ROW_NUMBER() OVER (
-        PARTITION BY python_major, python_minor 
+        PARTITION BY python_major, python_minor
         ORDER BY timestamp DESC
       ) as rn
       FROM commits
     ) ranked WHERE rn <= 50
   )
 );
-DELETE FROM runs 
+DELETE FROM runs
 WHERE commit_sha NOT IN (
   SELECT sha FROM (
     SELECT sha, ROW_NUMBER() OVER (
-      PARTITION BY python_major, python_minor 
+      PARTITION BY python_major, python_minor
       ORDER BY timestamp DESC
     ) as rn
     FROM commits
@@ -815,7 +812,7 @@ DELETE FROM runs;`
       },
       {
         name: '💀 LEVEL 2: All performance data',
-        query: `-- 💀 NUKE LEVEL 2: Remove all performance tracking data  
+        query: `-- 💀 NUKE LEVEL 2: Remove all performance tracking data
 -- PRESERVES: Binaries, environments, admin users, auth tokens
 -- DESTROYS: All benchmark results, runs, commit history
 -- USE CASE: Start fresh tracking but keep configuration
@@ -832,7 +829,7 @@ DELETE FROM commits;`
 -- USE CASE: Complete data reset while preserving admin accounts
 -- RECOVERY: Reconfigure everything from scratch
 DELETE FROM benchmark_results;
-DELETE FROM runs;  
+DELETE FROM runs;
 DELETE FROM commits;
 DELETE FROM auth_tokens;
 DELETE FROM admin_sessions;
@@ -844,7 +841,7 @@ DELETE FROM binaries;`
         query: `-- 💀 NUKE LEVEL 4: TOTAL DESTRUCTION OF EVERYTHING
 -- PRESERVES: Nothing (you will lose admin access!)
 -- DESTROYS: Every single piece of data in the database
--- USE CASE: Complete database reset/corruption recovery  
+-- USE CASE: Complete database reset/corruption recovery
 -- RECOVERY: Manual database recreation required
 -- ⚠️ WARNING: You will be locked out and need DB admin access!
 TRUNCATE TABLE benchmark_results CASCADE;
@@ -877,31 +874,31 @@ TRUNCATE TABLE binaries CASCADE;`
     'Maintenance': [
       {
         name: '🔧 Database maintenance info',
-        query: `SELECT 
+        query: `SELECT
   'Last VACUUM' as operation,
   COALESCE(last_vacuum::text, 'Never') as last_run,
   COALESCE(last_autovacuum::text, 'Never') as last_auto_run
-FROM pg_stat_user_tables 
+FROM pg_stat_user_tables
 WHERE schemaname = 'public' AND relname = 'benchmark_results'
 UNION ALL
-SELECT 
+SELECT
   'Last ANALYZE',
   COALESCE(last_analyze::text, 'Never'),
   COALESCE(last_autoanalyze::text, 'Never')
-FROM pg_stat_user_tables 
+FROM pg_stat_user_tables
 WHERE schemaname = 'public' AND relname = 'benchmark_results';`
       },
       {
         name: '📊 Query performance stats',
-        query: `SELECT 
+        query: `SELECT
   query,
   calls,
   total_time,
   mean_time,
   rows
-FROM pg_stat_statements 
-WHERE query LIKE '%benchmark_results%' 
-ORDER BY total_time DESC 
+FROM pg_stat_statements
+WHERE query LIKE '%benchmark_results%'
+ORDER BY total_time DESC
 LIMIT 10;`
       }
     ]
@@ -980,8 +977,8 @@ LIMIT 10;`
               </div>
 
               <div className="flex items-center space-x-2">
-                <Button 
-                  onClick={executeQuery} 
+                <Button
+                  onClick={executeQuery}
                   disabled={loading || !query.trim()}
                   className="flex items-center"
                 >
@@ -1029,7 +1026,7 @@ LIMIT 10;`
                           {result.rows.length} rows returned
                         </p>
                       </div>
-                      
+
                       <div className="border rounded-lg overflow-hidden">
                         <div className="max-h-96 overflow-auto">
                           <Table>
@@ -1047,8 +1044,8 @@ LIMIT 10;`
                                 <TableRow key={index}>
                                   {result.column_names?.map((col) => (
                                     <TableCell key={col} className="font-mono text-sm">
-                                      {row[col] !== null && row[col] !== undefined 
-                                        ? String(row[col]) 
+                                      {row[col] !== null && row[col] !== undefined
+                                        ? String(row[col])
                                         : <span className="text-muted-foreground italic">null</span>
                                       }
                                     </TableCell>
@@ -1140,7 +1137,7 @@ LIMIT 10;`
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => 
+                    onClick={() =>
                       insertSampleQuery(`SELECT * FROM ${tableSchema.name} LIMIT 10;`)
                     }
                     className="w-full"

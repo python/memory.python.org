@@ -57,6 +57,8 @@ Requests go through `httpx.AsyncClient` with FastAPI's ASGI transport,
 so the full request/response cycle (middleware, dependency injection,
 validation) is exercised without a running server.
 
+Both checks run in CI on pushes to `main` and on pull requests.
+
 ### Populating Mock Data
 ```bash
 docker compose -f docker-compose.dev.yml exec backend python scripts/populate_db.py

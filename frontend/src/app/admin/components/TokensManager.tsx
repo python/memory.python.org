@@ -42,7 +42,7 @@ export default function TokensManager() {
       ]);
       setTokens(tokensData);
       setAnalytics(analyticsData);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load token data',
@@ -76,7 +76,7 @@ export default function TokensManager() {
           token.is_active ? 'deactivated' : 'activated'
         } successfully`,
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to update token status',
@@ -102,7 +102,7 @@ export default function TokensManager() {
         title: 'Success',
         description: 'Token deleted successfully',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to delete token',
@@ -126,7 +126,7 @@ export default function TokensManager() {
         title: 'Success',
         description: 'Token created successfully',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to create token',
@@ -170,7 +170,7 @@ export default function TokensManager() {
           duration: 6000,
         });
       }
-    } catch (error) {
+    } catch {
       // Select the text and explain
       try {
         const tokenInput = document.getElementById('token') as HTMLInputElement;
@@ -178,7 +178,7 @@ export default function TokensManager() {
           tokenInput.select();
           tokenInput.setSelectionRange(0, 99999);
         }
-      } catch (selectError) {
+      } catch {
         // Ignore selection errors
       }
 
@@ -478,7 +478,7 @@ export default function TokensManager() {
                 </div>
                 <div className="space-y-2">
                   <p className="text-sm text-muted-foreground">
-                    Store this token securely. It won't be displayed again.
+                    Store this token securely. It won&apos;t be displayed again.
                   </p>
                   {!navigator.clipboard && (
                     <div className="bg-blue-50 border border-blue-200 rounded-md p-3">

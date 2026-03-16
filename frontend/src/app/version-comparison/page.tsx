@@ -28,10 +28,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import {
-  Tooltip,
-  TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
 } from '@/components/ui/tooltip';
 import {
   GitBranch,
@@ -39,11 +36,7 @@ import {
   ArrowUpDown,
   Filter,
   AlertCircle,
-  Info,
-  Code2,
-  BarChart3,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import type { Commit, Binary, Environment } from '@/lib/types';
 import type {
   TrendDataPoint,
@@ -72,7 +65,6 @@ type SortField = 'benchmark_name';
 type SortDirection = 'asc' | 'dsc';
 
 function VersionComparisonContent() {
-  const router = useRouter();
   const [commits, setCommits] = useState<Commit[]>([]);
   const [binaries, setBinaries] = useState<Binary[]>([]);
   const [environments, setEnvironments] = useState<Environment[]>([]);
@@ -618,7 +610,7 @@ function VersionComparisonContent() {
                     </Label>
                     <p className="text-sm text-muted-foreground">
                       Choose which Python versions to include in the comparison
-                      (maximum 5). We'll use the latest commit for each version.
+                      (maximum 5). We&apos;ll use the latest commit for each version.
                     </p>
                   </div>
                   <div className="flex items-center gap-2 mt-3 lg:mt-0">

@@ -56,7 +56,7 @@ export default function AboutPage() {
       try {
         const users = await api.getMaintainers();
         setAdminUsers(users.filter((user) => user.is_active));
-      } catch (error) {
+      } catch {
         // Fallback to hardcoded admin if API fails
         setAdminUsers([
           {
@@ -248,7 +248,7 @@ export default function AboutPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Powered by Memray's flamegraph generation, explore exactly where
+                Powered by Memray&apos;s flamegraph generation, explore exactly where
                 memory is allocated in the CPython codebase. Click through call
                 stacks, zoom into specific functions, and identify memory
                 hotspots.
@@ -265,7 +265,7 @@ export default function AboutPage() {
             </CardHeader>
             <CardContent>
               <p className="text-muted-foreground">
-                Access memory profiling data for any commit in CPython's
+                Access memory profiling data for any commit in CPython&apos;s
                 history. Compare commits across weeks, months, or years to
                 understand long-term memory usage trends and validate that
                 optimizations have lasting impact.
@@ -331,7 +331,7 @@ export default function AboutPage() {
         <CardContent className="prose prose-lg prose-neutral dark:prose-invert max-w-none text-center">
           <p>
             CPython Memory Insights is built on top of <strong>Memray</strong>,
-            Bloomberg's powerful memory profiler for Python. Memray provides the
+            Bloomberg&apos;s powerful memory profiler for Python. Memray provides the
             core profiling capabilities that enable tracking memory allocations
             with minimal overhead and generate detailed flamegraphs for
             analysis.
@@ -358,7 +358,7 @@ export default function AboutPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {faqItems.map((item, index) => (
+          {faqItems.map((item) => (
             <Collapsible
               key={item.question}
               open={openFAQ === item.question}

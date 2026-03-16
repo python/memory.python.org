@@ -58,7 +58,6 @@ import type {
 import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import { useToast } from '@/hooks/use-toast';
 
@@ -279,7 +278,7 @@ export default function BuildComparisonPage() {
 
         for (const [key, trends] of Object.entries(batchResponse.results)) {
           // Extract binary ID and benchmark name from key: format is "binaryId:benchmarkName|pythonVersion"
-          let benchmarkPart = key.split('|')[0]; // Remove python version part
+          const benchmarkPart = key.split('|')[0]; // Remove python version part
           const [binaryId, benchmarkName] = benchmarkPart.split(':'); // Extract binary ID and benchmark name
           if (!newTrendData[binaryId]) {
             newTrendData[binaryId] = {};
@@ -310,7 +309,7 @@ export default function BuildComparisonPage() {
     debouncedMaxDataPoints,
   ]); // Remove selectedBenchmarks and benchmarkMode from dependencies
 
-  const filteredData = useMemo(() => {
+  useMemo(() => {
     // For "All Benchmarks" mode, don't require selectedBenchmarks
     const requiresBenchmarkSelection =
       benchmarkMode === 'specific' && selectedBenchmarks.length === 0;
@@ -1009,7 +1008,7 @@ export default function BuildComparisonPage() {
                       default_benchᵢ) × 100%]) / n_benchmarks
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Each benchmark's % change vs Default is calculated, then
+                      Each benchmark&apos;s % change vs Default is calculated, then
                       averaged across all selected benchmarks. 0% = same as
                       default, positive = uses more memory, negative = uses less
                       memory.
