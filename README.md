@@ -35,10 +35,27 @@ Services start automatically with hot reload:
 ## Development Commands
 
 ### Testing
+
 ```bash
-npm run lint                # Frontend linting (in frontend directory)
-npm run typecheck           # TypeScript type checking
+# Backend tests
+docker compose -f docker-compose.dev.yml exec backend python -m pytest tests/ -v
+
+# With coverage report
+docker compose -f docker-compose.dev.yml exec backend python -m pytest tests/ --cov=app --cov-report=term-missing
+
+# Frontend checks
+docker compose -f docker-compose.dev.yml exec frontend npm run lint
+docker compose -f docker-compose.dev.yml exec frontend npm run typecheck
 ```
+
+Backend tests use an in-memory SQLite database, independent of the
+PostgreSQL instance used in development. Each test gets a fresh database
+with empty tables. Fixtures in `backend/tests/conftest.py` provide
+pre-built model instances (commits, binaries, environments, runs,
+benchmark results, auth tokens) that tests can depend on as needed.
+Requests go through `httpx.AsyncClient` with FastAPI's ASGI transport,
+so the full request/response cycle (middleware, dependency injection,
+validation) is exercised without a running server.
 
 ### Populating Mock Data
 ```bash
