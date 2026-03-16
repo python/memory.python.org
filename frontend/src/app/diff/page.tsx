@@ -45,13 +45,10 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import type {
-  DiffTableRow,
-  MetricKey,
   Commit,
   Binary,
   Environment,
 } from '@/lib/types';
-import { METRIC_OPTIONS } from '@/lib/types';
 import { api } from '@/lib/api';
 import type { DiffQueryParams } from '@/types/api';
 import { useSearchParams } from 'next/navigation';
@@ -335,14 +332,14 @@ function DiffTableContent() {
           environment_id: selectedEnvironmentId,
           metric_key: 'high_watermark_bytes',
         } satisfies DiffQueryParams;
-        
+
         const totalAllocatedParams = {
           commit_sha: selectedCommitSha,
           binary_id: selectedBinaryId,
           environment_id: selectedEnvironmentId,
           metric_key: 'total_allocated_bytes',
         } satisfies DiffQueryParams;
-        
+
         const [highWatermarkData, totalAllocatedData] = await Promise.all([
           api.getDiffTable(highWatermarkParams),
           api.getDiffTable(totalAllocatedParams),
@@ -542,10 +539,6 @@ function DiffTableContent() {
     if (delta < -5) return 'text-green-600 dark:text-green-400 font-semibold';
     if (delta < 0) return 'text-emerald-500 dark:text-emerald-400';
     return 'text-foreground';
-  };
-
-  const getPythonVersionDisplay = (versionStr?: string) => {
-    return versionStr ? `(py ${versionStr})` : '';
   };
 
   if (!mounted || loading) {

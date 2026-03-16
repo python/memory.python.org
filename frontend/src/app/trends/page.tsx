@@ -310,7 +310,7 @@ export default function BenchmarkTrendPage() {
 
         for (const [key, trends] of Object.entries(batchResponse.results)) {
           // Extract benchmark name from key: format is "binaryId:benchmarkName|pythonVersion"
-          let benchmarkPart = key.split('|')[0]; // Remove python version part
+          const benchmarkPart = key.split('|')[0]; // Remove python version part
           const [, benchmarkName] = benchmarkPart.split(':'); // Extract benchmark name
           newTrendData[benchmarkName] = trends;
         }
