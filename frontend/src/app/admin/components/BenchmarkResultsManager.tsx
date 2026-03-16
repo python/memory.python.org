@@ -23,16 +23,13 @@ import {
 } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  BarChart3, 
-  Edit, 
-  Trash2, 
-  Search, 
-  Eye,
+import {
+  BarChart3,
+  Edit,
+  Trash2,
+  Search,
   Flame,
   Database,
-  CheckSquare,
-  Square
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import type { BenchmarkResultResponse, BenchmarkResultUpdate } from '@/lib/types';
@@ -83,7 +80,7 @@ export default function BenchmarkResultsManager() {
       if (filters.max_memory) params.max_memory = parseInt(filters.max_memory);
 
       const apiResults = await api.getAdminBenchmarkResults(params);
-      
+
       // Map API response to component's expected format
       const mappedResults: BenchmarkResultResponse[] = apiResults.map(result => ({
         id: result.id,
@@ -95,7 +92,7 @@ export default function BenchmarkResultsManager() {
         top_allocating_functions: result.top_allocating_functions,
         has_flamegraph: result.has_flamegraph,
       }));
-      
+
       setResults(mappedResults);
     } catch (error) {
       console.error('Error loading benchmark results:', error);
@@ -384,7 +381,7 @@ export default function BenchmarkResultsManager() {
               </CardHeader>
             </Card>
           )}
-          
+
           <div className="space-y-4">
             {results.map((result) => (
               <Card
@@ -396,7 +393,7 @@ export default function BenchmarkResultsManager() {
                     <div className="flex items-center space-x-3">
                       <Checkbox
                         checked={selectedResults.has(result.id)}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           handleSelectResult(result.id, checked as boolean)
                         }
                       />
@@ -434,7 +431,7 @@ export default function BenchmarkResultsManager() {
                             </DialogHeader>
                             <div className="overflow-auto">
                               {flamegraphHtml && (
-                                <div 
+                                <div
                                   dangerouslySetInnerHTML={{ __html: flamegraphHtml }}
                                   className="w-full"
                                 />
@@ -470,7 +467,7 @@ export default function BenchmarkResultsManager() {
                                 className="font-mono"
                               />
                             </div>
-                            
+
                             <div>
                               <Label htmlFor="edit-high-watermark">High Watermark (bytes)</Label>
                               <Input
@@ -513,7 +510,7 @@ export default function BenchmarkResultsManager() {
                                       ...prev,
                                       allocation_histogram: parsed,
                                     }));
-                                  } catch (error) {
+                                  } catch {
                                     // Invalid JSON, ignore
                                   }
                                 }}
@@ -534,7 +531,7 @@ export default function BenchmarkResultsManager() {
                                       ...prev,
                                       top_allocating_functions: parsed,
                                     }));
-                                  } catch (error) {
+                                  } catch {
                                     // Invalid JSON, ignore
                                   }
                                 }}

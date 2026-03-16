@@ -68,7 +68,7 @@ interface EnvironmentCardProps {
 }
 
 function EnvironmentCard({
-  binary,
+  binary: _binary,
   binaryId,
   environment,
   commits,

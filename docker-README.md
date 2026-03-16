@@ -152,6 +152,16 @@ ADMIN_GITHUB_TEAMS=memory-python-org
 
 **Note:** Development compose file uses port 9002 for frontend, production uses 3000.
 
+### Linting & Type Checking
+
+```bash
+# ESLint (must pass with zero errors)
+docker compose -f docker-compose.dev.yml exec frontend npm run lint
+
+# TypeScript type checking
+docker compose -f docker-compose.dev.yml exec frontend npm run typecheck
+```
+
 ### Accessing the Database
 
 ```bash

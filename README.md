@@ -36,9 +36,16 @@ Services start automatically with hot reload:
 
 ### Testing
 ```bash
-npm run lint                # Frontend linting (in frontend directory)
+# Via Docker (recommended)
+docker compose -f docker-compose.dev.yml exec frontend npm run lint
+docker compose -f docker-compose.dev.yml exec frontend npm run typecheck
+
+# Or locally in the frontend directory
+npm run lint                # ESLint (must pass with zero errors)
 npm run typecheck           # TypeScript type checking
 ```
+
+Both checks run in CI on pushes to `main` and on pull requests.
 
 ### Populating Mock Data
 ```bash

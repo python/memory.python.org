@@ -110,7 +110,7 @@ export default function Home() {
       <div className="w-full max-w-6xl">
         {/* First row - 3 cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          {features.slice(0, 3).map((feature, index) => (
+          {features.slice(0, 3).map((feature) => (
             <Card
               key={feature.title}
               className="flex flex-col shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
@@ -138,7 +138,7 @@ export default function Home() {
 
         {/* Second row - 3 cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.slice(3).map((feature, index) => (
+          {features.slice(3).map((feature) => (
             <Card
               key={feature.title}
               className="flex flex-col shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 group"
