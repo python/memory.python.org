@@ -18,24 +18,19 @@ This project consists of three main components:
 
 ### Setup & Installation
 ```bash
-# Install all dependencies and set up database
-make setup
+# Copy environment config
+cp .env.example .env
 
-# Or install components separately
-make install          # Install frontend + backend dependencies
-make init-db         # Initialize SQLite database
-make populate-db     # Add mock data for development
+# Build and start all services
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 ### Development
-```bash
-# Start both frontend and backend servers
-make dev
 
-# Or start them individually
-make dev-frontend    # Frontend on http://localhost:9002
-make dev-backend     # Backend API on http://localhost:8000
-```
+Services start automatically with hot reload:
+- Frontend: http://localhost:9002
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/api/docs
 
 ## Development Commands
 
@@ -59,10 +54,13 @@ make clean                  # Clean up generated files and caches
 
 ### Updating Backend Dependencies
 ```bash
-# Edit backend/requirements.in, then regenerate the lockfile:
+# Edit backend/requirements.in, then regenerate both lockfiles:
 docker run --rm -v "$(pwd)/backend:/app" -w /app python:3.13-slim-bookworm \
-  sh -c "pip install --quiet pip-tools && pip-compile --strip-extras \
-  --generate-hashes --output-file requirements.txt requirements.in"
+  sh -c "pip install --quiet pip-tools && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements.txt requirements.in && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements-dev.txt requirements-dev.in"
 
 # Rebuild the backend container:
 docker compose -f docker-compose.dev.yml up --build -d backend
@@ -101,10 +99,10 @@ memory-tracker benchmark /path/to/cpython HEAD~5..HEAD \
 
 ```bash
 # Development with hot reload
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 
 # Production deployment
-docker-compose up
+docker compose up
 ```
 
 ## Usage Examples

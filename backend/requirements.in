@@ -5,10 +5,9 @@ pydantic-settings
 sqlalchemy
 aiosqlite
 asyncpg
+psycopg2-binary
 python-multipart
 python-dateutil
-pytest
-pytest-asyncio
 httpx
 authlib>=1.2.0
 sqlparse
