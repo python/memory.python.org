@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Shield, LogOut, User } from 'lucide-react';
+import { Shield, LogOut } from 'lucide-react';
 import api from '@/lib/api';
 import BinariesManager from './components/BinariesManager';
 import EnvironmentsManager from './components/EnvironmentsManager';
@@ -28,17 +28,11 @@ interface AdminUser {
   avatar_url: string;
 }
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
-
 export default function AdminPage() {
   const [user, setUser] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [authenticating, setAuthenticating] = useState(false);
   const { toast } = useToast();
-
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000/api';
 
   useEffect(() => {
     checkAuth();
@@ -60,7 +54,7 @@ export default function AdminPage() {
         name: userData.name || userData.username,
         avatar_url: userData.avatar_url || 'https://github.com/identicons/default.png'
       });
-    } catch (error) {
+    } catch {
       // Silent fail for auth check - user will see login screen
     } finally {
       setLoading(false);
@@ -74,7 +68,7 @@ export default function AdminPage() {
 
       // Redirect to GitHub OAuth
       window.location.href = data.auth_url;
-    } catch (error) {
+    } catch {
       toast({
         title: 'Authentication Failed',
         description: 'Failed to initiate GitHub authentication',
@@ -93,7 +87,7 @@ export default function AdminPage() {
         title: 'Logged Out',
         description: 'You have been successfully logged out',
       });
-    } catch (error) {
+    } catch {
       toast({
         title: 'Logout Failed',
         description: 'Failed to logout properly',

@@ -13,7 +13,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -62,7 +61,7 @@ export default function BinariesManager() {
     try {
       const data = await api.getAdminBinaries();
       setBinaries(data);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load binaries',
@@ -95,7 +94,7 @@ export default function BinariesManager() {
       } else {
         await api.createBinary(binaryData);
       }
-      
+
       await loadBinaries();
       setIsDialogOpen(false);
       resetForm();

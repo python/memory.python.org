@@ -36,12 +36,10 @@ import {
   User,
   Calendar,
   UserCheck,
-  AlertTriangle,
   Shield,
-  Crown,
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import type { AdminUserResponse, AdminUserCreate } from '@/lib/types';
+import type { AdminUserResponse } from '@/lib/types';
 
 export default function AdminUsersManager() {
   const [users, setUsers] = useState<AdminUserResponse[]>([]);
@@ -89,7 +87,7 @@ export default function AdminUsersManager() {
         github_username: newUser.github_username.trim(),
         notes: newUser.notes.trim() || undefined,
       });
-      
+
       setUsers((prev) => [...prev, createdUser]);
       setNewUser({ github_username: '', notes: '' });
       setDialogOpen(false);

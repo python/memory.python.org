@@ -55,7 +55,7 @@ export default function EnvironmentsManager() {
     try {
       const data = await api.getAdminEnvironments();
       setEnvironments(data);
-    } catch (error) {
+    } catch {
       toast({
         title: 'Error',
         description: 'Failed to load environments',
@@ -81,7 +81,7 @@ export default function EnvironmentsManager() {
       } else {
         await api.createEnvironment(environmentData);
       }
-      
+
       await loadEnvironments();
       setIsDialogOpen(false);
       resetForm();
