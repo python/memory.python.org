@@ -40,16 +40,9 @@ npm run lint                # Frontend linting (in frontend directory)
 npm run typecheck           # TypeScript type checking
 ```
 
-### Database Management
+### Populating Mock Data
 ```bash
-make reset-db               # Drop and recreate database with fresh data
-make populate-db           # Add mock benchmark data
-```
-
-### Production
-```bash
-make build                  # Build frontend for production
-make clean                  # Clean up generated files and caches
+docker compose -f docker-compose.dev.yml exec backend python scripts/populate_db.py
 ```
 
 ### Updating Backend Dependencies
@@ -105,6 +98,26 @@ docker compose -f docker-compose.dev.yml up
 docker compose up
 ```
 
+## Local Development (not recommended)
+
+Running services directly on the host is possible but not recommended.
+Docker Compose ensures consistent Python/Node versions, database setup,
+and dependency isolation across all platforms.
+
+### Prerequisites
+- Python 3.13+
+- Node.js 20+
+
+```bash
+make setup        # Install deps, init DB, populate mock data
+make dev          # Start frontend + backend with hot reload
+make test         # Run backend tests
+make reset-db     # Drop and recreate database with fresh data
+make populate-db  # Populate the DB with mock data
+make build        # Build frontend for production
+make clean        # Clean up generated files and caches
+```
+
 ## Usage Examples
 
 ### Analyzing Memory Trends
@@ -138,7 +151,7 @@ memory-tracker benchmark ~/cpython HEAD~10..HEAD \
 ## Contributing
 
 1. Follow the existing code style and conventions
-2. Run tests before committing: `make test`
+2. Run tests before committing
 3. Use TypeScript for all frontend code
 4. Follow the repository patterns for new features
 5. Never commit secrets or authentication tokens
