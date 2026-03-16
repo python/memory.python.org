@@ -13,9 +13,8 @@ This project consists of three main components:
 ## Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- CPython source repository (for benchmarking)
+- Docker Engine 20.10+ and Docker Compose 2.0+
+- CPython source repository (for benchmarking with the worker)
 
 ### Setup & Installation
 ```bash
@@ -56,6 +55,17 @@ make populate-db           # Add mock benchmark data
 ```bash
 make build                  # Build frontend for production
 make clean                  # Clean up generated files and caches
+```
+
+### Updating Backend Dependencies
+```bash
+# Edit backend/requirements.in, then regenerate the lockfile:
+docker run --rm -v "$(pwd)/backend:/app" -w /app python:3.13-slim-bookworm \
+  sh -c "pip install --quiet pip-tools && pip-compile --strip-extras \
+  --generate-hashes --output-file requirements.txt requirements.in"
+
+# Rebuild the backend container:
+docker compose -f docker-compose.dev.yml up --build -d backend
 ```
 
 ## Worker Setup

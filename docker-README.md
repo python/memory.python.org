@@ -103,6 +103,24 @@ docker-compose up -d backend
 
 ## Development
 
+### Updating Backend Dependencies
+
+Backend dependencies are managed with [pip-tools](https://pip-tools.readthedocs.io/).
+Edit `backend/requirements.in` for direct dependencies, then regenerate the
+pinned lockfile:
+
+```bash
+docker run --rm -v "$(pwd)/backend:/app" -w /app python:3.13-slim-bookworm \
+  sh -c "pip install --quiet pip-tools && pip-compile --strip-extras \
+  --generate-hashes --output-file requirements.txt requirements.in"
+```
+
+Commit both `requirements.in` and `requirements.txt`, then rebuild:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d backend
+```
+
 ### Environment Variables
 
 The application uses a `.env` file for configuration. Copy the example and customize:
