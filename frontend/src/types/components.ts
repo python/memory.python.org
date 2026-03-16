@@ -1,11 +1,5 @@
 import { ReactNode } from 'react';
-import {
-  Binary,
-  Environment,
-  PythonVersionFilterOption,
-  DiffTableRow,
-} from '@/lib/types';
-import { ChartDataPoint, TrendDataPoint } from './api';
+import { ChartDataPoint } from './api';
 
 // Base component props
 export interface BaseComponentProps {

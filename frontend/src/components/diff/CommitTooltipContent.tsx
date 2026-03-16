@@ -1,7 +1,6 @@
 'use client';
 
 import type { Commit } from '@/lib/types';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface CommitTooltipContentProps {
   commit?: Commit;
