@@ -17,12 +17,12 @@ This Docker Compose configuration brings up the entire Memory Tracker applicatio
 
 2. **Build and start all services:**
    ```bash
-   docker-compose up --build
+   docker compose up --build
    ```
 
 3. **Start in detached mode (background):**
    ```bash
-   docker-compose up -d --build
+   docker compose up -d --build
    ```
 
 4. **Access the application:**
@@ -68,40 +68,62 @@ The application automatically:
 ### View logs
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
-docker-compose logs -f db
+docker compose logs -f backend
+docker compose logs -f frontend
+docker compose logs -f db
 ```
 
 ### Restart services
 ```bash
 # All services
-docker-compose restart
+docker compose restart
 
 # Specific service
-docker-compose restart backend
+docker compose restart backend
 ```
 
 ### Stop and remove everything
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Stop and remove with volumes (clears database)
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ### Rebuild specific service
 ```bash
-docker-compose build backend
-docker-compose up -d backend
+docker compose build backend
+docker compose up -d backend
 ```
 
 ## Development
+
+### Updating Backend Dependencies
+
+Backend dependencies are managed with [pip-tools](https://pip-tools.readthedocs.io/).
+There are two lockfiles: `requirements.txt` (production) and `requirements-dev.txt`
+(adds test tooling). Edit `backend/requirements.in` for direct dependencies, then
+regenerate both lockfiles:
+
+```bash
+docker run --rm -v "$(pwd)/backend:/app" -w /app python:3.13-slim-bookworm \
+  sh -c "pip install --quiet pip-tools && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements.txt requirements.in && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements-dev.txt requirements-dev.in"
+```
+
+Commit all changed files, then rebuild:
+
+```bash
+docker compose -f docker-compose.dev.yml up --build -d backend
+```
 
 ### Environment Variables
 
@@ -134,7 +156,7 @@ ADMIN_GITHUB_TEAMS=memory-python-org
 
 ```bash
 # Connect to PostgreSQL container
-docker-compose exec db psql -U memory_tracker_user -d memory_tracker
+docker compose exec db psql -U memory_tracker_user -d memory_tracker
 
 # Or from host (if psql is installed)
 psql -h localhost -p 5432 -U memory_tracker_user -d memory_tracker
@@ -143,25 +165,25 @@ psql -h localhost -p 5432 -U memory_tracker_user -d memory_tracker
 ### Backend Shell Access
 
 ```bash
-docker-compose exec backend sh
+docker compose exec backend sh
 ```
 
 ### Frontend Shell Access
 
 ```bash
-docker-compose exec frontend sh
+docker compose exec frontend sh
 ```
 
 ## Troubleshooting
 
 ### Service won't start
-1. Check logs: `docker-compose logs [service-name]`
-2. Verify health checks: `docker-compose ps`
-3. Restart specific service: `docker-compose restart [service-name]`
+1. Check logs: `docker compose logs [service-name]`
+2. Verify health checks: `docker compose ps`
+3. Restart specific service: `docker compose restart [service-name]`
 
 ### Database connection issues
-1. Ensure PostgreSQL is healthy: `docker-compose ps db`
-2. Check database logs: `docker-compose logs db`
+1. Ensure PostgreSQL is healthy: `docker compose ps db`
+2. Check database logs: `docker compose logs db`
 3. Verify connection string in backend logs
 
 ### Frontend can't reach backend
@@ -172,13 +194,13 @@ docker-compose exec frontend sh
 ### Clean slate restart
 ```bash
 # Stop everything and remove volumes
-docker-compose down -v
+docker compose down -v
 
 # Remove images (optional)
-docker-compose down --rmi all
+docker compose down --rmi all
 
 # Rebuild and start
-docker-compose up --build
+docker compose up --build
 ```
 
 ## Production Considerations

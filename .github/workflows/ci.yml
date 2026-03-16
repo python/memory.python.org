@@ -1,11 +1,42 @@
-name: Dummy-CI
+name: CI
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
-  build:
+  check-lockfile:
+    name: Check backend lockfile is up to date
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Pass
-      run: echo Success!
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure lockfiles are updated when .in files change
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          FAIL=0
+          if echo "$CHANGED" | grep -q 'backend/requirements\.in$'; then
+            if ! echo "$CHANGED" | grep -q 'backend/requirements\.txt$'; then
+              echo "::error::backend/requirements.in was modified but backend/requirements.txt was not."
+              FAIL=1
+            fi
+            if ! echo "$CHANGED" | grep -q 'backend/requirements-dev\.txt$'; then
+              echo "::error::backend/requirements.in was modified but backend/requirements-dev.txt was not."
+              FAIL=1
+            fi
+          fi
+          if echo "$CHANGED" | grep -q 'backend/requirements-dev\.in$'; then
+            if ! echo "$CHANGED" | grep -q 'backend/requirements-dev\.txt$'; then
+              echo "::error::backend/requirements-dev.in was modified but backend/requirements-dev.txt was not."
+              FAIL=1
+            fi
+          fi
+          if [ "$FAIL" -eq 1 ]; then
+            echo "::error::Please run pip-compile to regenerate lockfiles. See README for instructions."
+            exit 1
+          fi

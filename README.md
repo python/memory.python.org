@@ -13,30 +13,24 @@ This project consists of three main components:
 ## Quick Start
 
 ### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- CPython source repository (for benchmarking)
+- Docker Engine 20.10+ and Docker Compose 2.0+
+- CPython source repository (for benchmarking with the worker)
 
 ### Setup & Installation
 ```bash
-# Install all dependencies and set up database
-make setup
+# Copy environment config
+cp .env.example .env
 
-# Or install components separately
-make install          # Install frontend + backend dependencies
-make init-db         # Initialize SQLite database
-make populate-db     # Add mock data for development
+# Build and start all services
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 ### Development
-```bash
-# Start both frontend and backend servers
-make dev
 
-# Or start them individually
-make dev-frontend    # Frontend on http://localhost:9002
-make dev-backend     # Backend API on http://localhost:8000
-```
+Services start automatically with hot reload:
+- Frontend: http://localhost:9002
+- Backend API: http://localhost:8000
+- API Documentation: http://localhost:8000/api/docs
 
 ## Development Commands
 
@@ -46,16 +40,23 @@ npm run lint                # Frontend linting (in frontend directory)
 npm run typecheck           # TypeScript type checking
 ```
 
-### Database Management
+### Populating Mock Data
 ```bash
-make reset-db               # Drop and recreate database with fresh data
-make populate-db           # Add mock benchmark data
+docker compose -f docker-compose.dev.yml exec backend python scripts/populate_db.py
 ```
 
-### Production
+### Updating Backend Dependencies
 ```bash
-make build                  # Build frontend for production
-make clean                  # Clean up generated files and caches
+# Edit backend/requirements.in, then regenerate both lockfiles:
+docker run --rm -v "$(pwd)/backend:/app" -w /app python:3.13-slim-bookworm \
+  sh -c "pip install --quiet pip-tools && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements.txt requirements.in && \
+  pip-compile --strip-extras --generate-hashes \
+    --output-file requirements-dev.txt requirements-dev.in"
+
+# Rebuild the backend container:
+docker compose -f docker-compose.dev.yml up --build -d backend
 ```
 
 ## Worker Setup
@@ -91,10 +92,30 @@ memory-tracker benchmark /path/to/cpython HEAD~5..HEAD \
 
 ```bash
 # Development with hot reload
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 
 # Production deployment
-docker-compose up
+docker compose up
+```
+
+## Local Development (not recommended)
+
+Running services directly on the host is possible but not recommended.
+Docker Compose ensures consistent Python/Node versions, database setup,
+and dependency isolation across all platforms.
+
+### Prerequisites
+- Python 3.13+
+- Node.js 20+
+
+```bash
+make setup        # Install deps, init DB, populate mock data
+make dev          # Start frontend + backend with hot reload
+make test         # Run backend tests
+make reset-db     # Drop and recreate database with fresh data
+make populate-db  # Populate the DB with mock data
+make build        # Build frontend for production
+make clean        # Clean up generated files and caches
 ```
 
 ## Usage Examples
@@ -130,7 +151,7 @@ memory-tracker benchmark ~/cpython HEAD~10..HEAD \
 ## Contributing
 
 1. Follow the existing code style and conventions
-2. Run tests before committing: `make test`
+2. Run tests before committing
 3. Use TypeScript for all frontend code
 4. Follow the repository patterns for new features
 5. Never commit secrets or authentication tokens
