@@ -1,11 +1,27 @@
-name: Dummy-CI
+name: CI
 
-on: [push]
+on:
+  push:
+    branches: [main]
+  pull_request:
 
 jobs:
-  build:
+  check-lockfile:
+    name: Check backend lockfile is up to date
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v1
-    - name: Pass
-      run: echo Success!
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Ensure requirements.txt is updated when requirements.in changes
+        run: |
+          BASE=${{ github.event.pull_request.base.sha }}
+          HEAD=${{ github.event.pull_request.head.sha }}
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD")
+          if echo "$CHANGED" | grep -q 'backend/requirements\.in'; then
+            if ! echo "$CHANGED" | grep -q 'backend/requirements\.txt'; then
+              echo "::error::backend/requirements.in was modified but backend/requirements.txt was not. Please run pip-compile to regenerate the lockfile."
+              exit 1
+            fi
+          fi
