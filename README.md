@@ -51,7 +51,7 @@ npm run lint                # ESLint (must pass with zero errors)
 npm run typecheck           # TypeScript type checking
 ```
 
-Both checks run in CI on every push and pull request.
+Both checks run in CI on pushes to `main` and on pull requests.
 
 ### Database Management
 ```bash
