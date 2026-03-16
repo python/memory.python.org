@@ -341,8 +341,14 @@ async def upload_worker_run(
         }
 
     except IntegrityError as e:
-        # Handle unique constraint violation for duplicate commit+binary+environment
-        if "unique_commit_binary_env" in str(e).lower():
+        # The only unique constraint that can fire here is
+        # unique_commit_binary_env on the runs table.
+        error_str = str(e).lower()
+        if "unique_commit_binary_env" in error_str or (
+            "commit_sha" in error_str
+            and "binary_id" in error_str
+            and "environment_id" in error_str
+        ):
             logger.error(
                 f"Upload failed: Duplicate run for commit {commit_sha[:8]}, binary '{binary_id}', environment '{environment_id}'"
             )

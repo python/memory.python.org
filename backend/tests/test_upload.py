@@ -1,5 +1,7 @@
 """Tests for the upload API endpoints."""
 
+import copy
+
 import pytest
 
 UPLOAD_PAYLOAD = {
@@ -142,3 +144,154 @@ async def test_report_memray_failure_success(
     assert response.status_code == 200
     data = response.json()
     assert data["message"] == "Memray failure reported successfully"
+
+
+@pytest.mark.asyncio
+async def test_upload_duplicate_commit_binary_env(
+    client, auth_headers, sample_binary, sample_environment
+):
+    """Uploading the same commit+binary+environment twice should return 409."""
+    response = await client.post(
+        "/api/upload-run", json=UPLOAD_PAYLOAD, headers=auth_headers
+    )
+    assert response.status_code == 200
+
+    response = await client.post(
+        "/api/upload-run", json=UPLOAD_PAYLOAD, headers=auth_headers
+    )
+    assert response.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_upload_existing_commit_new_binary(
+    client, auth_headers, db_session, sample_environment
+):
+    """Uploading the same commit with a different binary should succeed."""
+    from app.models import Binary
+    for bin_id in ("bin-a", "bin-b"):
+        db_session.add(Binary(
+            id=bin_id, name=bin_id, flags=[], display_order=0,
+        ))
+    await db_session.commit()
+
+    payload_a = copy.deepcopy(UPLOAD_PAYLOAD)
+    payload_a["binary_id"] = "bin-a"
+    payload_a["metadata"]["configure_vars"]["CONFIG_ARGS"] = ""
+
+    payload_b = copy.deepcopy(UPLOAD_PAYLOAD)
+    payload_b["binary_id"] = "bin-b"
+    payload_b["metadata"]["configure_vars"]["CONFIG_ARGS"] = ""
+
+    resp_a = await client.post(
+        "/api/upload-run", json=payload_a, headers=auth_headers
+    )
+    assert resp_a.status_code == 200
+
+    resp_b = await client.post(
+        "/api/upload-run", json=payload_b, headers=auth_headers
+    )
+    assert resp_b.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_upload_clears_memray_failure(
+    client, auth_headers, sample_binary, sample_environment
+):
+    """A successful upload should clear memray failures for that binary+env."""
+    # Report a failure
+    failure_payload = {
+        "commit_sha": "b" * 40,
+        "commit_timestamp": "2025-06-16T09:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "memray failed",
+    }
+    resp = await client.post(
+        "/api/report-memray-failure", json=failure_payload, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+    # Upload successfully — this should clear the failure
+    resp = await client.post(
+        "/api/upload-run", json=UPLOAD_PAYLOAD, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+    # Verify the upload response confirms success
+    data = resp.json()
+    assert data["results_created"] == 1
+
+
+@pytest.mark.asyncio
+async def test_memray_failure_update_newer(
+    client, auth_headers, sample_binary, sample_environment
+):
+    """Reporting a newer failure should update the existing record."""
+    older = {
+        "commit_sha": "a" * 40,
+        "commit_timestamp": "2025-06-15T10:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "old failure",
+    }
+    newer = {
+        "commit_sha": "b" * 40,
+        "commit_timestamp": "2025-06-16T10:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "new failure",
+    }
+
+    resp = await client.post(
+        "/api/report-memray-failure", json=older, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+    resp = await client.post(
+        "/api/report-memray-failure", json=newer, headers=auth_headers
+    )
+    assert resp.status_code == 200
+    assert resp.json()["message"] == "Memray failure reported successfully"
+
+    status = await client.get("/api/memray-status")
+    data = status.json()
+    assert data["failure_count"] == 1
+    assert data["affected_environments"][0]["commit_sha"] == "b" * 40
+
+
+@pytest.mark.asyncio
+async def test_memray_failure_ignore_older(
+    client, auth_headers, sample_binary, sample_environment
+):
+    """Reporting an older failure should be ignored."""
+    newer = {
+        "commit_sha": "b" * 40,
+        "commit_timestamp": "2025-06-16T10:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "newer failure",
+    }
+    older = {
+        "commit_sha": "a" * 40,
+        "commit_timestamp": "2025-06-15T10:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "older failure",
+    }
+
+    resp = await client.post(
+        "/api/report-memray-failure", json=newer, headers=auth_headers
+    )
+    assert resp.status_code == 200
+
+    resp = await client.post(
+        "/api/report-memray-failure", json=older, headers=auth_headers
+    )
+    assert resp.status_code == 200
+    assert "ignored" in resp.json()["message"].lower()
+
+    # Original failure should remain unchanged
+    status = await client.get("/api/memray-status")
+    data = status.json()
+    assert data["failure_count"] == 1
+    assert data["affected_environments"][0]["commit_sha"] == "b" * 40
