@@ -329,6 +329,7 @@ async def upload_worker_run(
                 models.MemrayBuildFailure.environment_id == environment_id
             )
         )
+        await db.commit()
 
         return {
             "message": "Worker run uploaded successfully",

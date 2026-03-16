@@ -155,10 +155,11 @@ async def test_trends_returns_chronological_data(client, prod_data):
     data = response.json()
     assert len(data) == 2
 
-    # Both data points present with correct memory values
-    hwm_values = {d["sha"][:8]: d["high_watermark_bytes"] for d in data}
-    assert hwm_values["e05182f9"] == 1_557_777
-    assert hwm_values["d3d94e0e"] == 1_721_155
+    # Ordered by timestamp DESC: newer commit first
+    assert data[0]["sha"] == COMMIT_CURR["sha"]
+    assert data[0]["high_watermark_bytes"] == 1_721_155
+    assert data[1]["sha"] == COMMIT_PREV["sha"]
+    assert data[1]["high_watermark_bytes"] == 1_557_777
 
 
 @pytest.mark.asyncio

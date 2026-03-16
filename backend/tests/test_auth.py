@@ -5,8 +5,22 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_valid_bearer_token(client, auth_headers, sample_binary, sample_environment):
-    """A valid Bearer token should authenticate successfully."""
-    response = await client.get("/api/binaries")
+    """A valid Bearer token should authenticate successfully on a protected endpoint."""
+    payload = {
+        "commit_sha": "a" * 40,
+        "commit_timestamp": "2025-06-16T10:00:00",
+        "binary_id": "default",
+        "environment_id": "linux-x86_64",
+        "error_message": "test",
+    }
+    # Without auth → rejected
+    response = await client.post("/api/report-memray-failure", json=payload)
+    assert response.status_code in (401, 403)
+
+    # With auth → accepted
+    response = await client.post(
+        "/api/report-memray-failure", json=payload, headers=auth_headers
+    )
     assert response.status_code == 200
 
 

@@ -216,10 +216,12 @@ async def test_upload_clears_memray_failure(
         "/api/upload-run", json=UPLOAD_PAYLOAD, headers=auth_headers
     )
     assert resp.status_code == 200
+    assert resp.json()["results_created"] == 1
 
-    # Verify the upload response confirms success
-    data = resp.json()
-    assert data["results_created"] == 1
+    # Verify the failure was cleared
+    status = await client.get("/api/memray-status")
+    assert status.json()["has_failures"] is False
+    assert status.json()["failure_count"] == 0
 
 
 @pytest.mark.asyncio
