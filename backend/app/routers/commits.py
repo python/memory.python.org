@@ -20,11 +20,11 @@ async def get_commits(
     db: AsyncSession = Depends(get_database),
 ):
     logger = get_logger("api.commits")
-    logger.info(f"Fetching commits", extra={"skip": skip, "limit": limit})
+    logger.info("Fetching commits", extra={"skip": skip, "limit": limit})
 
     try:
         commits = await crud.get_commits(db, skip=skip, limit=limit)
-        logger.info(f"Successfully retrieved commits", extra={"count": len(commits)})
+        logger.info("Successfully retrieved commits", extra={"count": len(commits)})
 
         return [
             schemas.Commit(
@@ -41,23 +41,23 @@ async def get_commits(
             for commit in commits
         ]
     except Exception as e:
-        logger.error(f"Failed to fetch commits", extra={"error": str(e)})
+        logger.error("Failed to fetch commits", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Failed to fetch commits")
 
 
 @router.get("/commits/{sha}", response_model=schemas.Commit)
 async def get_commit(sha: str, db: AsyncSession = Depends(get_database)):
     logger = get_logger("api.commits")
-    logger.info(f"Fetching commit by SHA", extra={"sha": sha})
+    logger.info("Fetching commit by SHA", extra={"sha": sha})
 
     try:
         commit = await crud.get_commit_by_sha(db, sha=sha)
         if commit is None:
-            logger.warning(f"Commit not found", extra={"sha": sha})
+            logger.warning("Commit not found", extra={"sha": sha})
             raise HTTPException(status_code=404, detail="Commit not found")
 
         logger.info(
-            f"Successfully retrieved commit",
+            "Successfully retrieved commit",
             extra={
                 "sha": commit.sha[:8],
                 "author": commit.author,
@@ -79,7 +79,7 @@ async def get_commit(sha: str, db: AsyncSession = Depends(get_database)):
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Failed to fetch commit", extra={"sha": sha, "error": str(e)})
+        logger.error("Failed to fetch commit", extra={"sha": sha, "error": str(e)})
         raise HTTPException(status_code=500, detail="Failed to fetch commit")
 
 

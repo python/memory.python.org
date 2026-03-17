@@ -379,7 +379,7 @@ async def populate_database(database_url: Optional[str] = None):
                 await db.flush()
                 print(f"✅ Created {len(binary_objects)} new binaries")
             else:
-                print(f"✅ All binaries already exist")
+                print("✅ All binaries already exist")
 
             # Use all binaries (existing + new) for runs
             all_binary_objects = existing_binaries + binary_objects
@@ -404,7 +404,7 @@ async def populate_database(database_url: Optional[str] = None):
                 await db.flush()
                 print(f"✅ Created {len(environment_objects)} new environments")
             else:
-                print(f"✅ All environments already exist")
+                print("✅ All environments already exist")
 
             # Use all environments (existing + new) for runs
             all_environment_objects = existing_environments + environment_objects
@@ -487,7 +487,7 @@ async def populate_database(database_url: Optional[str] = None):
             # Commit everything at once
             await db.commit()
 
-            print(f"\n🎉 Database populated successfully!")
+            print("\n🎉 Database populated successfully!")
             print(f"   - {len(commit_objects)} commits (100 per Python version)")
             print(
                 f"   - {len(binary_objects)} new binaries ({len(all_binary_objects)} total)"

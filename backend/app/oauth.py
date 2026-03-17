@@ -4,9 +4,9 @@ GitHub OAuth authentication handler for admin panel access.
 
 import secrets
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-from fastapi import HTTPException, Request
+from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 

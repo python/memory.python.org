@@ -1,7 +1,7 @@
 """Logging utilities for sanitizing sensitive data."""
 
 import re
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List
 
 # Patterns for sensitive data
 SENSITIVE_PATTERNS = [

@@ -15,7 +15,7 @@ from typing import List
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import AsyncSessionLocal
-from app import models, schemas, crud
+from app import models, schemas
 
 
 # Mock data generators
@@ -403,7 +403,7 @@ async def populate_database():
             # Commit everything at once
             await db.commit()
 
-            print(f"\n🎉 Database populated with OBVIOUS TEST DATA!")
+            print("\n🎉 Database populated with OBVIOUS TEST DATA!")
             print(f"   - {len(commit_objects)} commits (2 per Python version)")
             print(f"   - {len(binary_objects)} binaries (default, debug, nogil)")
             print(f"   - {len(environment_objects)} environments (gcc-11, clang-14)")
@@ -413,10 +413,10 @@ async def populate_database():
             print(
                 f"   - {len(result_objects)} benchmark results (3 benchmarks per run)"
             )
-            print(f"\n📊 MEMORY VALUES FOR VERIFICATION:")
-            print(f"   Benchmark A: Default=1MB, Debug=1.5MB, NoGIL=0.8MB")
-            print(f"   Benchmark B: Default=2MB, Debug=3MB, NoGIL=1.6MB")
-            print(f"   Benchmark C: Default=10MB, Debug=15MB, NoGIL=8MB")
+            print("\n📊 MEMORY VALUES FOR VERIFICATION:")
+            print("   Benchmark A: Default=1MB, Debug=1.5MB, NoGIL=0.8MB")
+            print("   Benchmark B: Default=2MB, Debug=3MB, NoGIL=1.6MB")
+            print("   Benchmark C: Default=10MB, Debug=15MB, NoGIL=8MB")
 
         except Exception as e:
             print(f"❌ Error populating database: {e}")
