@@ -1,6 +1,5 @@
 """Shared fixtures for backend tests."""
 
-import hashlib
 import secrets
 from datetime import datetime, timedelta
 

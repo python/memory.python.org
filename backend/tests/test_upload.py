@@ -2,7 +2,6 @@
 
 import copy
 
-import pytest
 
 UPLOAD_PAYLOAD = {
     "metadata": {
@@ -39,13 +38,11 @@ UPLOAD_PAYLOAD = {
 }
 
 
-@pytest.mark.asyncio
 async def test_upload_requires_auth(client, sample_binary, sample_environment):
     response = await client.post("/api/upload-run", json=UPLOAD_PAYLOAD)
     assert response.status_code in (401, 403)
 
 
-@pytest.mark.asyncio
 async def test_upload_success(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -60,7 +57,6 @@ async def test_upload_success(
     assert data["results_created"] == 1
 
 
-@pytest.mark.asyncio
 async def test_upload_missing_commit_sha(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -74,7 +70,6 @@ async def test_upload_missing_commit_sha(
     assert response.status_code == 400
 
 
-@pytest.mark.asyncio
 async def test_upload_invalid_binary(client, auth_headers, sample_environment):
     payload = {**UPLOAD_PAYLOAD, "binary_id": "nonexistent"}
     response = await client.post(
@@ -84,7 +79,6 @@ async def test_upload_invalid_binary(client, auth_headers, sample_environment):
     assert "not found" in response.json()["detail"].lower()
 
 
-@pytest.mark.asyncio
 async def test_upload_invalid_environment(client, auth_headers, sample_binary):
     payload = {**UPLOAD_PAYLOAD, "environment_id": "nonexistent"}
     response = await client.post(
@@ -94,7 +88,6 @@ async def test_upload_invalid_environment(client, auth_headers, sample_binary):
     assert "not found" in response.json()["detail"].lower()
 
 
-@pytest.mark.asyncio
 async def test_upload_flag_mismatch(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -112,7 +105,6 @@ async def test_upload_flag_mismatch(
     assert "configure flags" in response.json()["detail"].lower()
 
 
-@pytest.mark.asyncio
 async def test_report_memray_failure_requires_auth(
     client, sample_binary, sample_environment
 ):
@@ -127,7 +119,6 @@ async def test_report_memray_failure_requires_auth(
     assert response.status_code in (401, 403)
 
 
-@pytest.mark.asyncio
 async def test_report_memray_failure_success(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -146,7 +137,6 @@ async def test_report_memray_failure_success(
     assert data["message"] == "Memray failure reported successfully"
 
 
-@pytest.mark.asyncio
 async def test_upload_duplicate_commit_binary_env(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -162,7 +152,6 @@ async def test_upload_duplicate_commit_binary_env(
     assert response.status_code == 409
 
 
-@pytest.mark.asyncio
 async def test_upload_existing_commit_new_binary(
     client, auth_headers, db_session, sample_environment
 ):
@@ -193,7 +182,6 @@ async def test_upload_existing_commit_new_binary(
     assert resp_b.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_upload_clears_memray_failure(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -220,11 +208,11 @@ async def test_upload_clears_memray_failure(
 
     # Verify the failure was cleared
     status = await client.get("/api/memray-status")
-    assert status.json()["has_failures"] is False
-    assert status.json()["failure_count"] == 0
+    data = status.json()
+    assert data["has_failures"] is False
+    assert data["failure_count"] == 0
 
 
-@pytest.mark.asyncio
 async def test_memray_failure_update_newer(
     client, auth_headers, sample_binary, sample_environment
 ):
@@ -261,7 +249,6 @@ async def test_memray_failure_update_newer(
     assert data["affected_environments"][0]["commit_sha"] == "b" * 40
 
 
-@pytest.mark.asyncio
 async def test_memray_failure_ignore_older(
     client, auth_headers, sample_binary, sample_environment
 ):

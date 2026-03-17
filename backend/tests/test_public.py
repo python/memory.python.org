@@ -1,16 +1,13 @@
 """Tests for public API endpoints."""
 
-import pytest
 
 
-@pytest.mark.asyncio
 async def test_maintainers_empty(client):
     response = await client.get("/api/maintainers")
     assert response.status_code == 200
     assert response.json() == []
 
 
-@pytest.mark.asyncio
 async def test_maintainers_with_admin(client, admin_user):
     response = await client.get("/api/maintainers")
     assert response.status_code == 200
@@ -20,7 +17,6 @@ async def test_maintainers_with_admin(client, admin_user):
     assert data[0]["is_active"] is True
 
 
-@pytest.mark.asyncio
 async def test_memray_status_healthy(client):
     response = await client.get("/api/memray-status")
     assert response.status_code == 200
@@ -30,7 +26,6 @@ async def test_memray_status_healthy(client):
     assert data["affected_environments"] == []
 
 
-@pytest.mark.asyncio
 async def test_memray_status_with_failure(
     client, auth_headers, sample_binary, sample_environment
 ):

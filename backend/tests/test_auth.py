@@ -1,9 +1,7 @@
 """Tests for token authentication."""
 
-import pytest
 
 
-@pytest.mark.asyncio
 async def test_valid_bearer_token(client, auth_headers, sample_binary, sample_environment):
     """A valid Bearer token should authenticate successfully on a protected endpoint."""
     payload = {
@@ -24,7 +22,6 @@ async def test_valid_bearer_token(client, auth_headers, sample_binary, sample_en
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_upload_with_invalid_token(client, sample_binary, sample_environment):
     """An invalid token should be rejected."""
     headers = {"Authorization": "Bearer invalid_token_value"}
@@ -36,7 +33,6 @@ async def test_upload_with_invalid_token(client, sample_binary, sample_environme
     assert response.status_code in (401, 403)
 
 
-@pytest.mark.asyncio
 async def test_upload_with_no_token(client):
     """Missing token should be rejected."""
     response = await client.post(
@@ -46,7 +42,6 @@ async def test_upload_with_no_token(client):
     assert response.status_code in (401, 403)
 
 
-@pytest.mark.asyncio
 async def test_token_format_bearer(client, auth_token, sample_binary, sample_environment):
     """'Bearer <token>' format should work."""
     raw_token, _ = auth_token
@@ -66,7 +61,6 @@ async def test_token_format_bearer(client, auth_token, sample_binary, sample_env
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_token_format_token_prefix(client, auth_token, sample_binary, sample_environment):
     """'Token <token>' format should also work."""
     raw_token, _ = auth_token
@@ -85,7 +79,6 @@ async def test_token_format_token_prefix(client, auth_token, sample_binary, samp
     assert response.status_code == 200
 
 
-@pytest.mark.asyncio
 async def test_inactive_token_rejected(client, db_session, auth_token, sample_binary, sample_environment):
     """A deactivated token should be rejected."""
     raw_token, token_model = auth_token

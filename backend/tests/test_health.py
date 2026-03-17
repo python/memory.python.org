@@ -1,9 +1,7 @@
 """Tests for the health check endpoint."""
 
-import pytest
 
 
-@pytest.mark.asyncio
 async def test_health_check(client):
     response = await client.get("/health")
     assert response.status_code == 200
@@ -12,7 +10,6 @@ async def test_health_check(client):
     assert "timestamp" in data
 
 
-@pytest.mark.asyncio
 async def test_health_check_reports_db_status(client):
     """The health router uses a module-level settings object with
     enable_health_check_db=True (not overridable via test_settings).

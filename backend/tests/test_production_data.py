@@ -46,7 +46,6 @@ async def prod_data(db_session):
     await db_session.commit()
 
 
-@pytest.mark.asyncio
 async def test_diff_detects_regression(client, prod_data):
     """The diff endpoint should show the deltablue_base regression."""
     response = await client.get(
@@ -74,7 +73,6 @@ async def test_diff_detects_regression(client, prod_data):
     assert nbody["metric_delta_percent"] == pytest.approx(0.0)
 
 
-@pytest.mark.asyncio
 async def test_diff_previous_commit_details(client, prod_data):
     """The diff should include correct previous commit metadata."""
     response = await client.get(
@@ -99,7 +97,6 @@ async def test_diff_previous_commit_details(client, prod_data):
     assert curr["author"] == "alm"
 
 
-@pytest.mark.asyncio
 async def test_diff_first_commit_has_no_previous(client, prod_data):
     """Diffing the earlier commit should show no previous data."""
     response = await client.get(
@@ -118,7 +115,6 @@ async def test_diff_first_commit_has_no_previous(client, prod_data):
         assert row["prev_commit_details"] is None
 
 
-@pytest.mark.asyncio
 async def test_diff_with_total_allocated_metric(client, prod_data):
     """Diff should work with total_allocated_bytes metric too."""
     response = await client.get(
@@ -138,9 +134,8 @@ async def test_diff_with_total_allocated_metric(client, prod_data):
     assert deltablue["prev_metric_value"] == BENCH_DELTABLUE_PREV["total_allocated_bytes"]
 
 
-@pytest.mark.asyncio
 async def test_trends_returns_chronological_data(client, prod_data):
-    """Trends should return data points in chronological order."""
+    """Trends should return data points in reverse chronological order (newest first)."""
     response = await client.get(
         "/api/trends",
         params={
@@ -162,7 +157,6 @@ async def test_trends_returns_chronological_data(client, prod_data):
     assert data[1]["high_watermark_bytes"] == 1_557_777
 
 
-@pytest.mark.asyncio
 async def test_batch_trends_multiple_benchmarks(client, prod_data):
     """Batch trends should return data for multiple benchmarks at once."""
     response = await client.post(
@@ -200,7 +194,6 @@ async def test_batch_trends_multiple_benchmarks(client, prod_data):
     assert len(results[json_key]) == 2
 
 
-@pytest.mark.asyncio
 async def test_benchmark_names_filtered_by_version(client, prod_data):
     """Benchmark names should filter correctly by Python version."""
     response = await client.get(
@@ -229,7 +222,6 @@ async def test_benchmark_names_filtered_by_version(client, prod_data):
     assert response.json() == []
 
 
-@pytest.mark.asyncio
 async def test_python_versions_from_production_data(client, prod_data):
     response = await client.get("/api/python-versions")
     assert response.status_code == 200
@@ -239,7 +231,6 @@ async def test_python_versions_from_production_data(client, prod_data):
     assert versions[0]["minor"] == 15
 
 
-@pytest.mark.asyncio
 async def test_environments_for_binary(client, prod_data):
     response = await client.get("/api/binaries/nogil/environments")
     assert response.status_code == 200
@@ -250,7 +241,6 @@ async def test_environments_for_binary(client, prod_data):
     assert envs[0]["commit_count"] == 2
 
 
-@pytest.mark.asyncio
 async def test_commits_for_binary_and_environment(client, prod_data):
     response = await client.get(
         "/api/binaries/nogil/environments/gh_actions/commits"

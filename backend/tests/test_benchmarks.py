@@ -1,16 +1,13 @@
 """Tests for the benchmarks API endpoints."""
 
-import pytest
 
 
-@pytest.mark.asyncio
 async def test_all_benchmark_names_empty(client):
     response = await client.get("/api/benchmarks")
     assert response.status_code == 200
     assert response.json() == []
 
 
-@pytest.mark.asyncio
 async def test_all_benchmark_names(client, sample_benchmark_result):
     response = await client.get("/api/benchmarks")
     assert response.status_code == 200
@@ -18,7 +15,6 @@ async def test_all_benchmark_names(client, sample_benchmark_result):
     assert "json_dumps" in data
 
 
-@pytest.mark.asyncio
 async def test_filtered_benchmark_names(client, sample_benchmark_result):
     response = await client.get(
         "/api/benchmark-names",
@@ -34,7 +30,6 @@ async def test_filtered_benchmark_names(client, sample_benchmark_result):
     assert "json_dumps" in data
 
 
-@pytest.mark.asyncio
 async def test_filtered_benchmark_names_no_match(client, sample_benchmark_result):
     response = await client.get(
         "/api/benchmark-names",
@@ -49,7 +44,6 @@ async def test_filtered_benchmark_names_no_match(client, sample_benchmark_result
     assert response.json() == []
 
 
-@pytest.mark.asyncio
 async def test_diff_table(client, sample_benchmark_result):
     response = await client.get(
         "/api/diff",
@@ -69,7 +63,6 @@ async def test_diff_table(client, sample_benchmark_result):
     assert row["has_flamegraph"] is True
 
 
-@pytest.mark.asyncio
 async def test_diff_table_commit_not_found(client):
     response = await client.get(
         "/api/diff",
@@ -82,7 +75,6 @@ async def test_diff_table_commit_not_found(client):
     assert response.status_code == 404
 
 
-@pytest.mark.asyncio
 async def test_trends(client, sample_benchmark_result):
     response = await client.get(
         "/api/trends",
@@ -101,7 +93,6 @@ async def test_trends(client, sample_benchmark_result):
     assert data[0]["high_watermark_bytes"] == 1_000_000
 
 
-@pytest.mark.asyncio
 async def test_trends_batch(client, sample_benchmark_result):
     response = await client.post(
         "/api/trends-batch",
@@ -124,7 +115,6 @@ async def test_trends_batch(client, sample_benchmark_result):
     assert len(data["results"]) == 1
 
 
-@pytest.mark.asyncio
 async def test_flamegraph(client, sample_benchmark_result):
     result_id = sample_benchmark_result.id
     response = await client.get(f"/api/flamegraph/{result_id}")
@@ -134,7 +124,6 @@ async def test_flamegraph(client, sample_benchmark_result):
     assert data["benchmark_name"] == "json_dumps"
 
 
-@pytest.mark.asyncio
 async def test_flamegraph_not_found(client):
     response = await client.get("/api/flamegraph/nonexistent")
     assert response.status_code == 404
