@@ -183,13 +183,13 @@ async def populate_binaries(force: bool = False, database_url: str = None):
                         display_order=binary_data.get("display_order", 0),
                     )
 
-                    new_binary = await crud.create_binary(db, binary_create)
+                    await crud.create_binary(db, binary_create)
                     print(f"✅ Created binary '{binary_id}': {binary_data['name']}")
                     print(f"   Flags: {binary_data['flags']}")
                     print(f"   Description: {binary_data['description']}")
                     created_count += 1
 
-            print(f"\n🎉 Binary population completed!")
+            print("\n🎉 Binary population completed!")
             print(f"   - Created: {created_count} binaries")
             print(f"   - Updated: {updated_count} binaries")
             print(f"   - Skipped: {skipped_count} binaries")

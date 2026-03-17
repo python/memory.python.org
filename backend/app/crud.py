@@ -4,7 +4,6 @@ CRUD operations using eager loading and better query patterns.
 
 from sqlalchemy import select, desc, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload, contains_eager
 from typing import List, Optional, Dict, Any
 from datetime import datetime, UTC
 import logging
@@ -257,7 +256,7 @@ async def create_benchmark_result(
         allocation_histogram=result.result_json.allocation_histogram,
         total_allocated_bytes=result.result_json.total_allocated_bytes,
         top_allocating_functions=[
-            func.dict() for func in result.result_json.top_allocating_functions
+            func.model_dump() for func in result.result_json.top_allocating_functions
         ],
         flamegraph_html=result.flamegraph_html,
     )
@@ -411,7 +410,10 @@ async def get_auth_token_by_token(
     """Get an auth token by its token value."""
     result = await db.execute(
         select(models.AuthToken).where(
-            and_(models.AuthToken.token == token, models.AuthToken.is_active == True)
+            and_(
+                models.AuthToken.token == token,
+                models.AuthToken.is_active.is_(True),
+            )
         )
     )
     return result.scalars().first()
@@ -465,7 +467,7 @@ async def get_admin_users(db: AsyncSession) -> List[models.AdminUser]:
     """Get all admin users."""
     result = await db.execute(
         select(models.AdminUser)
-        .where(models.AdminUser.is_active == True)
+        .where(models.AdminUser.is_active.is_(True))
         .order_by(models.AdminUser.added_at)
     )
     return result.scalars().all()
@@ -479,7 +481,7 @@ async def get_admin_user_by_username(
         select(models.AdminUser).where(
             and_(
                 models.AdminUser.github_username == username,
-                models.AdminUser.is_active == True,
+                models.AdminUser.is_active.is_(True),
             )
         )
     )

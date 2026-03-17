@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime
 
@@ -22,8 +22,7 @@ class CommitCreate(CommitBase):
 
 
 class Commit(CommitBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class BinaryBase(BaseModel):
@@ -45,8 +44,7 @@ class BinaryCreate(BinaryBase):
 
 
 class Binary(BinaryBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class EnvironmentBase(BaseModel):
@@ -60,8 +58,7 @@ class EnvironmentCreate(EnvironmentBase):
 
 
 class Environment(EnvironmentBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class RunBase(BaseModel):
@@ -78,8 +75,7 @@ class RunCreate(RunBase):
 
 
 class Run(RunBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class TopAllocatingFunction(BaseModel):
@@ -111,8 +107,7 @@ class BenchmarkResultCreate(BaseModel):
 
 
 class BenchmarkResult(BenchmarkResultBase):
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # Worker upload schemas
@@ -181,8 +176,7 @@ class AdminUserPublic(BaseModel):
     added_at: datetime
     is_active: bool
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class MemrayFailureReport(BaseModel):
@@ -204,5 +198,4 @@ class MemrayFailurePublic(BaseModel):
     failure_timestamp: datetime
     commit_timestamp: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)

@@ -19,7 +19,7 @@ async def get_binaries(db: AsyncSession = Depends(get_database)):
 
     try:
         binaries = await crud.get_binaries(db)
-        logger.info(f"Successfully retrieved binaries", extra={"count": len(binaries)})
+        logger.info("Successfully retrieved binaries", extra={"count": len(binaries)})
 
         return [
             schemas.Binary(
@@ -34,7 +34,7 @@ async def get_binaries(db: AsyncSession = Depends(get_database)):
             for binary in binaries
         ]
     except Exception as e:
-        logger.error(f"Failed to fetch binaries", extra={"error": str(e)})
+        logger.error("Failed to fetch binaries", extra={"error": str(e)})
         raise HTTPException(status_code=500, detail="Failed to fetch binaries")
 
 

@@ -329,6 +329,7 @@ async def upload_worker_run(
                 models.MemrayBuildFailure.environment_id == environment_id
             )
         )
+        await db.commit()
 
         return {
             "message": "Worker run uploaded successfully",
@@ -341,8 +342,18 @@ async def upload_worker_run(
         }
 
     except IntegrityError as e:
-        # Handle unique constraint violation for duplicate commit+binary+environment
-        if "unique_commit_binary_env" in str(e).lower():
+        # Check for duplicate run constraint violation.
+        # asyncpg exposes constraint_name directly on the original exception;
+        # fall back to string matching for other backends (e.g. SQLite).
+        constraint = getattr(getattr(e, "orig", None), "constraint_name", None)
+        is_duplicate = (
+            constraint == "unique_commit_binary_env"
+            if constraint is not None
+            else "commit_sha" in str(e).lower()
+            and "binary_id" in str(e).lower()
+            and "environment_id" in str(e).lower()
+        )
+        if is_duplicate:
             logger.error(
                 f"Upload failed: Duplicate run for commit {commit_sha[:8]}, binary '{binary_id}', environment '{environment_id}'"
             )

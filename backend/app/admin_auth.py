@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_database
 from .models import AdminSession
-from .oauth import github_oauth, GitHubUser
-from .config import get_settings
+from .oauth import GitHubUser
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +51,7 @@ async def get_admin_session(
         select(AdminSession).where(
             and_(
                 AdminSession.session_token == session_token,
-                AdminSession.is_active == True,
+                AdminSession.is_active.is_(True),
                 AdminSession.expires_at > datetime.now(UTC).replace(tzinfo=None),
             )
         )
@@ -77,7 +76,7 @@ async def cleanup_expired_sessions(db: AsyncSession) -> None:
         select(AdminSession).where(
             and_(
                 AdminSession.expires_at <= datetime.now(UTC).replace(tzinfo=None),
-                AdminSession.is_active == True,
+                AdminSession.is_active.is_(True),
             )
         )
     )

@@ -11,7 +11,7 @@ import os
 # Add the parent directory to the path so we can import from app
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from app.database import create_tables, drop_tables, get_database
+from app.database import get_database
 from app import crud
 from app.config import get_settings
 
@@ -65,14 +65,6 @@ async def init_database():
     try:
         # Import models to ensure they're registered
         from app.models import (
-            AdminUser,
-            AdminSession,
-            AuthToken,
-            Commit,
-            Binary,
-            Environment,
-            Run,
-            BenchmarkResult,
             Base,
         )
         from app.database import create_database_engine
@@ -128,7 +120,6 @@ async def reset_database():
             Base,
         )
         from app.database import create_database_engine
-        from sqlalchemy.ext.asyncio import create_async_engine
 
         # Create a fresh engine with current settings
         engine = create_database_engine()

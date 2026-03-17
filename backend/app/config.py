@@ -3,9 +3,8 @@ Configuration management for the Memory Tracker API.
 All settings are loaded from environment variables with sensible defaults.
 """
 
-from typing import List, Optional, Union
+from typing import List
 from pydantic_settings import BaseSettings
-from pydantic import field_validator
 from functools import lru_cache
 
 

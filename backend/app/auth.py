@@ -1,10 +1,9 @@
 """Authentication utilities for the Memory Tracker API."""
 
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
-import logging
 
 from . import models, crud
 from .database import get_database

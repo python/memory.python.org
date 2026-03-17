@@ -1,6 +1,8 @@
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
+
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, StatementError
 from .models import Base
 from .config import get_settings
@@ -84,11 +86,6 @@ async def create_tables():
 async def drop_tables():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-
-
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator
-
 
 @asynccontextmanager
 async def transaction_scope() -> AsyncGenerator[AsyncSession, None]:
