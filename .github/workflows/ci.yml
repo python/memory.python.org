@@ -70,7 +70,7 @@ jobs:
       - name: Install backend dependencies
         if: steps.changes.outputs.backend == 'true'
         working-directory: backend
-        run: python -m pip install -r requirements-dev.txt ruff
+        run: python -m pip install -r requirements-dev.txt
       - name: Run Ruff
         if: steps.changes.outputs.backend == 'true'
         working-directory: backend
