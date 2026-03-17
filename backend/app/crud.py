@@ -411,7 +411,10 @@ async def get_auth_token_by_token(
     """Get an auth token by its token value."""
     result = await db.execute(
         select(models.AuthToken).where(
-            and_(models.AuthToken.token == token, models.AuthToken.is_active == True)
+            and_(
+                models.AuthToken.token == token,
+                models.AuthToken.is_active.is_(True),
+            )
         )
     )
     return result.scalars().first()
@@ -465,7 +468,7 @@ async def get_admin_users(db: AsyncSession) -> List[models.AdminUser]:
     """Get all admin users."""
     result = await db.execute(
         select(models.AdminUser)
-        .where(models.AdminUser.is_active == True)
+        .where(models.AdminUser.is_active.is_(True))
         .order_by(models.AdminUser.added_at)
     )
     return result.scalars().all()
@@ -479,7 +482,7 @@ async def get_admin_user_by_username(
         select(models.AdminUser).where(
             and_(
                 models.AdminUser.github_username == username,
-                models.AdminUser.is_active == True,
+                models.AdminUser.is_active.is_(True),
             )
         )
     )

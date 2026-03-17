@@ -142,9 +142,9 @@ async def list_tokens() -> None:
 async def deactivate_token(token_id: int) -> None:
     """Deactivate an authentication token."""
     # Ensure database tables exist
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             success = await crud.deactivate_auth_token(db, token_id)
             if success:
@@ -160,9 +160,9 @@ async def deactivate_token(token_id: int) -> None:
 
 async def reactivate_token(token_id: int) -> None:
     """Reactivate a deactivated authentication token."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             result = await db.execute(
                 select(models.AuthToken).where(models.AuthToken.id == token_id)
@@ -190,9 +190,9 @@ async def update_token_info(
     token_id: int, name: str = None, description: str = None
 ) -> None:
     """Update token name and/or description."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             result = await db.execute(
                 select(models.AuthToken).where(models.AuthToken.id == token_id)
@@ -233,9 +233,9 @@ async def search_tokens(
     inactive_only: bool = False,
 ) -> None:
     """Search tokens by name or description patterns."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             query = select(models.AuthToken)
 
@@ -251,9 +251,9 @@ async def search_tokens(
                 )
 
             if active_only:
-                conditions.append(models.AuthToken.is_active == True)
+                conditions.append(models.AuthToken.is_active.is_(True))
             elif inactive_only:
-                conditions.append(models.AuthToken.is_active == False)
+                conditions.append(models.AuthToken.is_active.is_(False))
 
             if conditions:
                 query = query.where(and_(*conditions))
@@ -308,9 +308,9 @@ async def search_tokens(
 
 async def show_token_details(token_id: int) -> None:
     """Show detailed information about a specific token."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             result = await db.execute(
                 select(models.AuthToken).where(models.AuthToken.id == token_id)
@@ -349,9 +349,9 @@ async def show_token_details(token_id: int) -> None:
 
 async def show_token_analytics() -> None:
     """Show analytics and statistics about token usage."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             # Get basic counts
             total_result = await db.execute(select(func.count(models.AuthToken.id)))
@@ -359,7 +359,7 @@ async def show_token_analytics() -> None:
 
             active_result = await db.execute(
                 select(func.count(models.AuthToken.id)).where(
-                    models.AuthToken.is_active == True
+                    models.AuthToken.is_active.is_(True)
                 )
             )
             active_tokens = active_result.scalar()
@@ -456,11 +456,11 @@ async def show_token_analytics() -> None:
 
 async def cleanup_old_tokens(days: int = 90, dry_run: bool = True) -> None:
     """Clean up unused tokens older than specified days."""
-    await create_tables()
+    await db_manager.create_tables()
 
     cutoff_date = datetime.utcnow() - timedelta(days=days)
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             # Find tokens that are either never used and old, or inactive and old
             result = await db.execute(
@@ -476,7 +476,7 @@ async def cleanup_old_tokens(days: int = 90, dry_run: bool = True) -> None:
             result2 = await db.execute(
                 select(models.AuthToken).where(
                     and_(
-                        models.AuthToken.is_active == False,
+                        models.AuthToken.is_active.is_(False),
                         models.AuthToken.created_at < cutoff_date,
                     )
                 )
@@ -547,13 +547,13 @@ async def export_tokens(
     format_type: str = "json", include_inactive: bool = True
 ) -> None:
     """Export token information (excluding actual token values)."""
-    await create_tables()
+    await db_manager.create_tables()
 
-    async with AsyncSessionLocal() as db:
+    async with db_manager.AsyncSession() as db:
         try:
             query = select(models.AuthToken)
             if not include_inactive:
-                query = query.where(models.AuthToken.is_active == True)
+                query = query.where(models.AuthToken.is_active.is_(True))
 
             query = query.order_by(models.AuthToken.created_at)
             result = await db.execute(query)
@@ -672,9 +672,7 @@ USAGE WITH WORKER:
     )
 
     # List tokens command
-    list_parser = subparsers.add_parser(
-        "list", help="List all existing authentication tokens"
-    )
+    subparsers.add_parser("list", help="List all existing authentication tokens")
 
     # Show token details command
     details_parser = subparsers.add_parser(
@@ -724,7 +722,7 @@ USAGE WITH WORKER:
     )
 
     # Analytics command
-    analytics_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "analytics", help="Show token usage analytics and statistics"
     )
 
