@@ -3,6 +3,8 @@
 import uuid
 import time
 import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -31,6 +33,36 @@ def create_app(settings=None) -> FastAPI:
     if settings is None:
         settings = get_settings()
 
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        # Configure logging using the app state before the app starts serving.
+        app.state.logging_manager.configure_logging()
+
+        # Disable uvicorn access logs to avoid duplication
+        uvicorn_logger = logging.getLogger("uvicorn.access")
+        uvicorn_logger.disabled = True
+
+        logger = get_logger("api.startup")
+        logger.info(
+            "Application starting up",
+            extra={
+                "log_level": settings.log_level,
+                "log_format": settings.log_format,
+                "api_version": settings.api_version,
+            },
+        )
+        await create_tables()
+        logger.info("Database tables created successfully")
+
+        # Ensure initial admin user exists
+        from .database import AsyncSessionLocal
+        from .crud import ensure_initial_admin
+
+        async with AsyncSessionLocal() as db:
+            await ensure_initial_admin(db, settings.admin_initial_username)
+
+        yield
+
     # Create FastAPI instance
     app = FastAPI(
         title=settings.api_title,
@@ -38,6 +70,7 @@ def create_app(settings=None) -> FastAPI:
         docs_url="/api/docs",
         redoc_url="/api/redoc",
         openapi_url="/api/openapi.json",
+        lifespan=lifespan,
     )
 
     # Store dependencies in app state
@@ -132,35 +165,6 @@ def create_app(settings=None) -> FastAPI:
             response.headers["X-Request-ID"] = request_id
 
         return response
-
-    # Configure startup event
-    @app.on_event("startup")
-    async def startup_event():
-        # Configure logging using the app state
-        app.state.logging_manager.configure_logging()
-
-        # Disable uvicorn access logs to avoid duplication
-        uvicorn_logger = logging.getLogger("uvicorn.access")
-        uvicorn_logger.disabled = True
-
-        logger = get_logger("api.startup")
-        logger.info(
-            "Application starting up",
-            extra={
-                "log_level": settings.log_level,
-                "log_format": settings.log_format,
-                "api_version": settings.api_version,
-            },
-        )
-        await create_tables()
-        logger.info("Database tables created successfully")
-
-        # Ensure initial admin user exists
-        from .database import AsyncSessionLocal
-        from .crud import ensure_initial_admin
-
-        async with AsyncSessionLocal() as db:
-            await ensure_initial_admin(db, settings.admin_initial_username)
 
     # Include routers
     app.include_router(health.router)

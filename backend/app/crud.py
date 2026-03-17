@@ -257,7 +257,7 @@ async def create_benchmark_result(
         allocation_histogram=result.result_json.allocation_histogram,
         total_allocated_bytes=result.result_json.total_allocated_bytes,
         top_allocating_functions=[
-            func.dict() for func in result.result_json.top_allocating_functions
+            func.model_dump() for func in result.result_json.top_allocating_functions
         ],
         flamegraph_html=result.flamegraph_html,
     )
