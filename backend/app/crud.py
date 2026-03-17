@@ -4,7 +4,6 @@ CRUD operations using eager loading and better query patterns.
 
 from sqlalchemy import select, desc, and_, func, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, joinedload, contains_eager
 from typing import List, Optional, Dict, Any
 from datetime import datetime, UTC
 import logging

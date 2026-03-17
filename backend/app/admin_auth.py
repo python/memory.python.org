@@ -12,8 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_database
 from .models import AdminSession
-from .oauth import github_oauth, GitHubUser
-from .config import get_settings
+from .oauth import GitHubUser
 
 logger = logging.getLogger(__name__)
 

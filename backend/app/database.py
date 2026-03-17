@@ -3,7 +3,6 @@ from typing import AsyncGenerator
 
 import logging
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
-from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import OperationalError, StatementError
 from .models import Base
 from .config import get_settings
