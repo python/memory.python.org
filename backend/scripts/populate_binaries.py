@@ -189,7 +189,7 @@ async def populate_binaries(force: bool = False, database_url: str = None):
                     print(f"   Description: {binary_data['description']}")
                     created_count += 1
 
-            print(f"\n🎉 Binary population completed!")
+            print("\n🎉 Binary population completed!")
             print(f"   - Created: {created_count} binaries")
             print(f"   - Updated: {updated_count} binaries")
             print(f"   - Skipped: {skipped_count} binaries")

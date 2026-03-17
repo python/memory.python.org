@@ -9,11 +9,9 @@ import asyncio
 import sys
 import os
 import secrets
-import hashlib
 import argparse
 import json
-from datetime import datetime, timedelta, UTC
-from typing import List, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 # Add the parent directory to the path so we can import from app
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -72,7 +70,7 @@ async def create_token(name: str, description: str = None) -> str:
             # Create the token in the database
             auth_token = await crud.create_auth_token(db, token, name, description)
 
-            print(f"✅ Successfully created authentication token!")
+            print("✅ Successfully created authentication token!")
             print(f"   ID: {auth_token.id}")
             print(f"   Name: {auth_token.name}")
             print(f"   Description: {auth_token.description or 'None'}")
