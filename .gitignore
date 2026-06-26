@@ -167,3 +167,6 @@ cython_debug/
 
 #Nextjs stuff
 frontend/*.next
+
+# Worker benchmark output
+benchmark_results/
