@@ -57,10 +57,10 @@ jobs:
     
     steps:
     - name: Checkout memory tracker
-      uses: actions/checkout@v4
+      uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@7f4fc3e22c37d6ff65e88745f38bd3157c663f7c # v4.9.1
       with:
         python-version: '3.11'
         
@@ -151,7 +151,7 @@ jobs:
           
     - name: Upload benchmark results (if failed)
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: benchmark-logs-${{ matrix.build_config.binary_id }}
         path: |
@@ -161,7 +161,7 @@ jobs:
         
     - name: Upload benchmark results (on success)
       if: success()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: benchmark-results-${{ matrix.build_config.binary_id }}
         path: ./benchmark_results/
