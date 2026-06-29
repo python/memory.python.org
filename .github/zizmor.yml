@@ -1,0 +1,5 @@
+rules:
+  secrets-outside-env:
+    ignore:
+      - benchmark.yml
+      - daily-benchmark.yml
