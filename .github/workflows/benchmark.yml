@@ -36,6 +36,9 @@ on:
         required: false
         default: '19'
 
+permissions:
+  contents: read
+
 jobs:
   benchmark:
     runs-on: ubuntu-latest
@@ -43,6 +46,8 @@ jobs:
     steps:
     - name: Checkout memory tracker
       uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
       
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -51,9 +56,11 @@ jobs:
         
     - name: Clone CPython repository
       run: |
-        git clone ${{ github.event.inputs.cpython_repo }} cpython
+        git clone ${GITHUB_EVENT_INPUTS_CPYTHON_REPO} cpython
         cd cpython
         git fetch --depth=200
+      env:
+        GITHUB_EVENT_INPUTS_CPYTHON_REPO: ${{ github.event.inputs.cpython_repo }}
         
     - name: Install memory tracker worker
       run: |
@@ -67,8 +74,8 @@ jobs:
         sudo .github/workflows/posix-deps-apt.sh
 
         # Install JIT dependencies
-        if [ "${{ inputs.binary_id }}" = "jit" ]; then
-          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh ${{ inputs.llvm }}
+        if [ "${INPUTS_BINARY_ID}" = "jit" ]; then
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh ${INPUTS_LLVM}
         fi
 
         # Install Memray dependencies
@@ -77,33 +84,44 @@ jobs:
           libdebuginfod-dev \
           libunwind-dev \
           liblz4-dev
+      env:
+        INPUTS_BINARY_ID: ${{ inputs.binary_id }}
+        INPUTS_LLVM: ${{ inputs.llvm }}
           
     - name: Run memory benchmarks
       env:
         MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
+        INPUTS_BINARY_ID: ${{ inputs.binary_id }}
+        INPUTS_LLVM: ${{ inputs.llvm }}
+        GITHUB_EVENT_INPUTS_COMMIT_RANGE: ${{ github.event.inputs.commit_range }}
+        GITHUB_EVENT_INPUTS_BINARY_ID: ${{ github.event.inputs.binary_id }}
+        GITHUB_EVENT_INPUTS_ENVIRONMENT_ID: ${{ github.event.inputs.environment_id }}
+        GITHUB_EVENT_INPUTS_SERVER_URL: ${{ github.event.inputs.server_url }}
+        GITHUB_EVENT_INPUTS_CONFIGURE_FLAGS: ${{ github.event.inputs.configure_flags }}
+        GITHUB_EVENT_INPUTS_MAKE_FLAGS: ${{ github.event.inputs.make_flags }}
       run: |
-        if [ "${{ inputs.binary_id }}" = "jit" ]; then
-          export PATH="$(llvm-config-${{ inputs.llvm }} --bindir):$PATH"
+        if [ "${INPUTS_BINARY_ID}" = "jit" ]; then
+          export PATH="$(llvm-config-${INPUTS_LLVM} --bindir):$PATH"
         fi
 
         # Build command with conditional flags
-        CMD="memory-tracker benchmark '${{ github.event.inputs.commit_range }}'"
+        CMD="memory-tracker benchmark '${GITHUB_EVENT_INPUTS_COMMIT_RANGE}'"
         CMD="$CMD --repo-path ./cpython"
-        CMD="$CMD --binary-id '${{ github.event.inputs.binary_id }}'"
-        CMD="$CMD --environment-id '${{ github.event.inputs.environment_id }}'"
-        CMD="$CMD --api-base '${{ github.event.inputs.server_url }}'"
+        CMD="$CMD --binary-id '${GITHUB_EVENT_INPUTS_BINARY_ID}'"
+        CMD="$CMD --environment-id '${GITHUB_EVENT_INPUTS_ENVIRONMENT_ID}'"
+        CMD="$CMD --api-base '${GITHUB_EVENT_INPUTS_SERVER_URL}'"
         CMD="$CMD --output-dir ./benchmark_results"
         CMD="$CMD --force"
         CMD="$CMD -vv"
         
         # Add configure flags if provided
-        if [ -n "${{ github.event.inputs.configure_flags }}" ]; then
-          CMD="$CMD --configure-flags='${{ github.event.inputs.configure_flags }}'"
+        if [ -n "${GITHUB_EVENT_INPUTS_CONFIGURE_FLAGS}" ]; then
+          CMD="$CMD --configure-flags='${GITHUB_EVENT_INPUTS_CONFIGURE_FLAGS}'"
         fi
         
         # Add make flags if provided
-        if [ -n "${{ github.event.inputs.make_flags }}" ]; then
-          CMD="$CMD --make-flags='${{ github.event.inputs.make_flags }}'"
+        if [ -n "${GITHUB_EVENT_INPUTS_MAKE_FLAGS}" ]; then
+          CMD="$CMD --make-flags='${GITHUB_EVENT_INPUTS_MAKE_FLAGS}'"
         fi
         
         echo "Running: $CMD"

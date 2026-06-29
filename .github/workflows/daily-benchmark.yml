@@ -27,6 +27,9 @@ on:
         required: false
         default: '19'
 
+permissions:
+  contents: read
+
 jobs:
   benchmark-builds:
     runs-on: ubuntu-latest
@@ -58,6 +61,8 @@ jobs:
     steps:
     - name: Checkout memory tracker
       uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      with:
+        persist-credentials: false
       
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
@@ -66,13 +71,13 @@ jobs:
         
     - name: Clone CPython repository and get commits
       run: |
-        git clone ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }} cpython
+        git clone "${GITHUB_EVENT_INPUTS_CPYTHON_REPO}" cpython
         cd cpython
         git fetch --all
         
         # Determine target date
-        if [ -n "${{ github.event.inputs.target_date }}" ]; then
-          TARGET_DATE="${{ github.event.inputs.target_date }}"
+        if [ -n "${GITHUB_EVENT_INPUTS_TARGET_DATE}" ]; then
+          TARGET_DATE="${GITHUB_EVENT_INPUTS_TARGET_DATE}"
         else
           TARGET_DATE=$(date -u +%Y-%m-%d)
         fi
@@ -92,6 +97,9 @@ jobs:
           
           echo "Commit to benchmark: $LAST_COMMIT"
         fi
+      env:
+        GITHUB_EVENT_INPUTS_TARGET_DATE: ${{ github.event.inputs.target_date }}
+        GITHUB_EVENT_INPUTS_CPYTHON_REPO: ${{ github.event.inputs.cpython_repo || 'https://github.com/python/cpython.git' }}
         
     - name: Print environment variables
       run: |
@@ -110,6 +118,8 @@ jobs:
         pip install -e .
         
     - name: Install build dependencies
+      env:
+        LLVM_VERSION: ${{ github.event.inputs.llvm || '19' }}
       run: |
         # Install CPython dependencies using their script
         cd cpython
@@ -117,7 +127,7 @@ jobs:
 
         # Install JIT dependencies if needed
         if [ "${{ matrix.build_config.install_deps }}" = "jit" ]; then
-          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh ${{ github.event.inputs.llvm || '19' }}
+          sudo bash -c "$(wget -O - https://apt.llvm.org/llvm.sh)" ./llvm.sh "${LLVM_VERSION}"
         fi
         
         # Install Memray dependencies  
@@ -130,20 +140,22 @@ jobs:
     - name: Run memory benchmark for commit range - ${{ matrix.build_config.description }}
       env:
         MEMORY_TRACKER_TOKEN: ${{ secrets.MEMORY_TRACKER_TOKEN }}
+        LLVM_VERSION: ${{ github.event.inputs.llvm || '19' }}
+        ENVIRONMENT_ID: ${{ github.event.inputs.environment_id || 'gh_actions' }}
+        SERVER_URL: ${{ github.event.inputs.server_url || 'https://memory.python.org' }}
       run: |
         if [ "${{ matrix.build_config.install_deps }}" = "jit" ]; then
-          export PATH="$(llvm-config-${{ github.event.inputs.llvm || '19' }} --bindir):$PATH"
-          export LLVM_VERSION="${{ github.event.inputs.llvm || '19' }}"
-          echo "LLVM Path: $(llvm-config-${{ github.event.inputs.llvm || '19' }} --bindir)"
-          echo "Clang version: $(clang-${{ github.event.inputs.llvm || '19' }} --version || echo 'clang-${{ github.event.inputs.llvm || '19' }} not found')"
+          export PATH="$(llvm-config-${LLVM_VERSION} --bindir):$PATH"
+          echo "LLVM Path: $(llvm-config-${LLVM_VERSION} --bindir)"
+          echo "Clang version: $(clang-${LLVM_VERSION} --version || echo "clang-${LLVM_VERSION} not found")"
         fi
         
         # Build command for commit range
         memory-tracker benchmark "$COMMIT_RANGE" \
           --repo-path ./cpython \
           --binary-id "${{ matrix.build_config.binary_id }}" \
-          --environment-id "${{ github.event.inputs.environment_id || 'gh_actions' }}" \
-          --api-base "${{ github.event.inputs.server_url || 'https://memory.python.org' }}" \
+          --environment-id "${ENVIRONMENT_ID}" \
+          --api-base "${SERVER_URL}" \
           --output-dir ./benchmark_results \
           --configure-flags="${{ matrix.build_config.configure_flags }}" \
           --force \
@@ -176,5 +188,7 @@ jobs:
     - name: Print summary
       run: |
         echo "Daily benchmark run completed"
-        echo "Benchmark jobs completed with status: ${{ needs.benchmark-builds.result }}"
+        echo "Benchmark jobs completed with status: ${NEEDS_BENCHMARK_BUILDS_RESULT}"
         echo "Binary types benchmarked: default, debug, jit, lto-pgo, nogil"
+      env:
+        NEEDS_BENCHMARK_BUILDS_RESULT: ${{ needs.benchmark-builds.result }}
