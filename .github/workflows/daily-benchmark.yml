@@ -29,7 +29,8 @@ on:
 
 jobs:
   benchmark-builds:
-    runs-on: ubuntu-latest
+    # Keep in sync with the Ubuntu version CPython's CI runs on
+    runs-on: ubuntu-26.04
     strategy:
       matrix:
         build_config:
